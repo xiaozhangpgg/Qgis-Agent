@@ -9,9 +9,9 @@ from .llm_client import LLMClient, LLMResponse
 from .tool_registry import ToolRegistry
 from .context_manager import ContextManager
 from .file_source_manager import FileSourceManager, SourceDecision
-from .tools.batch_reproject import run_batch_reproject
-from .tools.batch_clip import run_batch_clip
-from .tools.buffer import run_buffer
+from ..tools.batch_reproject import run_batch_reproject
+from ..tools.batch_clip import run_batch_clip
+from ..tools.buffer import run_buffer
 
 logger = logging.getLogger("QgisAgent")
 

@@ -6,7 +6,7 @@ from qgis.PyQt.QtWidgets import (
 from qgis.PyQt.QtCore import Qt
 from qgis.core import QgsSettings
 
-from .llm_client import LLMClient, PROVIDERS
+from ..core.llm_client import LLMClient, PROVIDERS
 
 SETTINGS_PREFIX = "QgisAgent"
 

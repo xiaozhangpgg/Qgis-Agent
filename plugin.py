@@ -20,7 +20,7 @@ class QgisAgentPlugin:
 
     def initGui(self):
         try:
-            from .llm_client import LLMClient
+            from .core.llm_client import LLMClient
             self._llm = LLMClient()
 
             icon_path = os.path.join(self.plugin_dir, "icon.png")
@@ -54,7 +54,7 @@ class QgisAgentPlugin:
             logger.exception("Failed to unload QGIS Agent plugin")
 
     def _create_sidebar(self):
-        from .sidebar import SidebarWidget
+        from .ui.sidebar import SidebarWidget
         self.sidebar = SidebarWidget(self.iface, self._llm, self.iface.mainWindow())
         self.iface.mainWindow().addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
         self.sidebar.setVisible(True)

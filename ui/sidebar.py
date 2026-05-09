@@ -9,10 +9,10 @@ from qgis.PyQt.QtGui import QKeyEvent
 
 from .message_widget import UserMessageWidget, AiMessageWidget
 from .tool_card import ToolCardWidget
-from .llm_client import LLMClient
-from .agent_engine import AgentEngine
-from .conversation_manager import ConversationManager
-from .file_source_manager import FileSourceManager
+from ..core.llm_client import LLMClient
+from ..core.agent_engine import AgentEngine
+from ..core.conversation_manager import ConversationManager
+from ..core.file_source_manager import FileSourceManager
 from .settings_dialog import SettingsDialog
 
 
@@ -339,7 +339,7 @@ class SidebarWidget(QDockWidget):
         self._file_area.setVisible(bool(self._attached_files))
 
     def _add_file_tag(self, name: str, managed_file):
-        from qgis.PyQt.QtGui import QColor, QPalette
+        from qgis.PyQt.QtGui import QPalette
         from qgis.PyQt.QtWidgets import QApplication
         mid_color = QApplication.palette().color(QPalette.Mid).name()
         tag = QFrame()
