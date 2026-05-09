@@ -2,6 +2,7 @@ from qgis.PyQt.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QScrollArea, QLineEdit,
     QSizePolicy, QFileDialog, QFrame, QTextEdit,
+    QMessageBox,
 )
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtGui import QKeyEvent
@@ -57,7 +58,9 @@ class SidebarWidget(QDockWidget):
         self._attached_files = []
         self._tool_cards = []
         self._current_ai_msg = None
+        self._current_ai_text = ""
         self._current_view = "chat"  # "chat" or "history"
+        self._message_count = 0
 
         self.setObjectName("QgisAgentSidebar")
         self.setMinimumWidth(300)
@@ -212,6 +215,7 @@ class SidebarWidget(QDockWidget):
         self._history_btn.clicked.connect(self._on_show_history)
         self._back_btn.clicked.connect(self._on_show_chat)
         self._settings_btn.clicked.connect(self._on_open_settings)
+        self._search_input.textChanged.connect(self._on_search)
 
         self._engine.text_chunk.connect(self._on_ai_text_chunk)
         self._engine.text_done.connect(self._on_ai_text_done)
@@ -233,6 +237,22 @@ class SidebarWidget(QDockWidget):
         self._input.clear()
         self._set_input_enabled(False)
 
+        # Ensure conversation exists
+        conv_id = self._conversation_mgr.get_current_id()
+        if not conv_id:
+            conv_id = self._conversation_mgr.create_new()
+
+        # Save user message
+        self._conversation_mgr.save_message(conv_id, "user", text)
+        self._message_count += 1
+
+        # Auto-generate title after first user message
+        if self._message_count == 1:
+            title = text[:20] + ("..." if len(text) > 20 else "")
+            self._conversation_mgr.update_title(conv_id, title)
+
+        self._current_ai_text = ""
+
         files = list(self._attached_files)
         self._clear_attached_files()
 
@@ -253,9 +273,17 @@ class SidebarWidget(QDockWidget):
         if not hasattr(self, '_current_ai_msg') or self._current_ai_msg is None:
             self._add_ai_message_widget()
         self._current_ai_msg.append_text(chunk)
+        self._current_ai_text += chunk
         self._scroll_to_bottom()
 
     def _on_ai_text_done(self):
+        if self._current_ai_text:
+            conv_id = self._conversation_mgr.get_current_id()
+            if conv_id:
+                self._conversation_mgr.save_message(conv_id, "assistant", self._current_ai_text)
+            self._current_ai_text = ""
+        if self._current_ai_msg:
+            self._current_ai_msg.stop_cursor()
         self._current_ai_msg = None
 
     def _on_tool_started(self, tool_name: str, params: dict):
@@ -274,6 +302,7 @@ class SidebarWidget(QDockWidget):
         if not hasattr(self, '_current_ai_msg') or self._current_ai_msg is None:
             self._add_ai_message_widget()
         self._current_ai_msg.append_text(f"\n⚠ {error_msg}")
+        self._current_ai_msg.stop_cursor()
         self._current_ai_msg = None
 
     def _on_engine_finished(self):
@@ -310,8 +339,11 @@ class SidebarWidget(QDockWidget):
         self._file_area.setVisible(bool(self._attached_files))
 
     def _add_file_tag(self, name: str, managed_file):
+        from qgis.PyQt.QtGui import QColor, QPalette
+        from qgis.PyQt.QtWidgets import QApplication
+        mid_color = QApplication.palette().color(QPalette.Mid).name()
         tag = QFrame()
-        tag.setStyleSheet("QFrame { background: #e0e0e0; border-radius: 3px; }")
+        tag.setStyleSheet(f"QFrame {{ background: {mid_color}; border-radius: 3px; }}")
         layout = QHBoxLayout(tag)
         layout.setContentsMargins(6, 2, 6, 2)
         layout.setSpacing(4)
@@ -345,12 +377,13 @@ class SidebarWidget(QDockWidget):
         self._file_area.setVisible(False)
 
     def _on_new_chat(self):
-        self._save_current_conversation()
         self._clear_messages()
         self._clear_attached_files()
         self._conversation_mgr.create_new()
         self._current_ai_msg = None
+        self._current_ai_text = ""
         self._tool_cards = []
+        self._message_count = 0
 
     def _on_show_history(self):
         self._current_view = "history"
@@ -367,13 +400,19 @@ class SidebarWidget(QDockWidget):
         dlg = SettingsDialog(self._llm, self)
         dlg.exec()
 
-    def _refresh_history_list(self):
+    def _on_search(self, query: str):
+        self._refresh_history_list(query.strip())
+
+    def _refresh_history_list(self, query: str = ""):
         while self._history_list_layout.count() > 1:
             child = self._history_list_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
 
-        summaries = self._conversation_mgr.list_conversations()
+        if query:
+            summaries = self._conversation_mgr.search_conversations(query)
+        else:
+            summaries = self._conversation_mgr.list_conversations()
         for s in summaries:
             item = self._create_history_item(s)
             self._history_list_layout.insertWidget(
@@ -393,6 +432,13 @@ class SidebarWidget(QDockWidget):
         title_row.addWidget(title)
         title_row.addStretch()
 
+        delete_btn = QPushButton("删除")
+        delete_btn.setFixedSize(36, 20)
+        delete_btn.setStyleSheet("color: red; border: none; font-size: 11px;")
+        delete_btn.setVisible(False)
+        delete_btn.clicked.connect(lambda checked, sid=summary.id: self._delete_conversation(sid))
+        title_row.addWidget(delete_btn)
+
         time_label = QLabel(summary.updated_at_display)
         time_label.setStyleSheet("color: gray; font-size: 11px;")
         title_row.addWidget(time_label)
@@ -405,7 +451,20 @@ class SidebarWidget(QDockWidget):
             layout.addWidget(preview)
 
         item.mousePressEvent = lambda e: self._load_conversation(summary.id)
+        item.enterEvent = lambda e: delete_btn.setVisible(True)
+        item.leaveEvent = lambda e: delete_btn.setVisible(False)
         return item
+
+    def _delete_conversation(self, conv_id: str):
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            "确定要删除这条对话吗？此操作不可撤销。",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self._conversation_mgr.delete_conversation(conv_id)
+            self._refresh_history_list()
 
     def _load_conversation(self, conv_id):
         conv = self._conversation_mgr.load_conversation(conv_id)
@@ -413,17 +472,18 @@ class SidebarWidget(QDockWidget):
             return
 
         self._clear_messages()
+        self._current_ai_text = ""
+        self._message_count = 0
+
         for msg in conv.messages:
             if msg.role == "user":
                 self._add_user_message(msg.content)
+                self._message_count += 1
             elif msg.role == "assistant":
                 self._on_ai_text_chunk(msg.content)
                 self._on_ai_text_done()
 
         self._on_show_chat()
-
-    def _save_current_conversation(self):
-        pass  # T21 - conversation_manager handles auto-save
 
     def _clear_messages(self):
         while self._messages_layout.count() > 1:

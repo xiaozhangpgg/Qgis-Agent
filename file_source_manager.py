@@ -50,9 +50,14 @@ class FileSourceManager(QObject):
         super().__init__(parent)
         self.iface = iface
         self._files: Dict[str, ManagedFile] = {}
+        self._source_override: Optional[str] = None
 
         project = QgsProject.instance()
         project.layersRemoved.connect(self._on_layers_removed)
+
+    def set_source_override(self, source: Optional[str]):
+        """Set a source override ('project' or 'plugin') to skip ASK_USER."""
+        self._source_override = source
 
     def add_file(self, file_path: str) -> Optional[ManagedFile]:
         if not os.path.isfile(file_path):
@@ -126,6 +131,13 @@ class FileSourceManager(QObject):
 
         if not has_project and not has_plugin:
             return SourceDecision.NO_LAYERS
+
+        # If user already chose, honor the override
+        if self._source_override == "project" and has_project:
+            return SourceDecision.USE_PROJECT
+        if self._source_override == "plugin" and has_plugin:
+            return SourceDecision.USE_PLUGIN
+
         if has_project and has_plugin:
             return SourceDecision.ASK_USER
         if has_project:
