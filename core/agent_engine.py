@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from qgis.PyQt.QtCore import QObject, QThread, pyqtSignal
 
 from .llm_client import LLMClient, LLMResponse
-from .tool_registry import ToolRegistry
+from .tool_registry import ToolRegistry, ConfirmResult
 from .context_manager import ContextManager
 from .file_source_manager import FileSourceManager, SourceDecision
 from ..tools.batch_reproject import run_batch_reproject
@@ -56,6 +56,8 @@ class _WorkerThread(QThread):
     tool_finished = pyqtSignal(str, bool, str, float)
     error = pyqtSignal(str)
     finished = pyqtSignal()
+    confirm_overwrite = pyqtSignal(str)  # message → main thread
+    confirm_response = pyqtSignal(bool, bool)  # confirmed, apply_to_all → worker
 
     def __init__(self, llm: LLMClient, registry: ToolRegistry,
                  context_mgr: ContextManager, file_source_mgr: FileSourceManager,
@@ -67,10 +69,28 @@ class _WorkerThread(QThread):
         self._file_source_mgr = file_source_mgr
         self._messages = messages
         self._abort = False
+        self._confirm_loop = None
+        self._confirm_result = ConfirmResult(confirmed=False)
 
     def abort(self):
         self._abort = True
         self._llm.abort()
+
+    def _ask_user_confirm(self, message: str) -> ConfirmResult:
+        """Ask user for overwrite confirmation. Called from worker thread, blocks until response."""
+        from qgis.PyQt.QtCore import QEventLoop
+        self._confirm_result = ConfirmResult(confirmed=False)
+        self._confirm_loop = QEventLoop()
+        self.confirm_overwrite.emit(message)
+        self._confirm_loop.exec()
+        self._confirm_loop = None
+        return self._confirm_result
+
+    def _on_confirm_response(self, confirmed: bool, apply_to_all: bool):
+        """Receive confirmation response from main thread."""
+        self._confirm_result = ConfirmResult(confirmed=confirmed, apply_to_all=apply_to_all)
+        if self._confirm_loop:
+            self._confirm_loop.quit()
 
     def run(self):
         try:
@@ -242,7 +262,7 @@ class AgentEngine(QObject):
             reply = QMessageBox.question(
                 None,
                 "选择数据来源",
-                f"{desc}\n\n选择"是"使用项目图层，选择"否"使用插件导入的文件",
+                f"{desc}\n\n选择「是」使用项目图层，选择「否」使用插件导入的文件",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
             )
             if reply == QMessageBox.Cancel:
@@ -264,6 +284,9 @@ class AgentEngine(QObject):
         self._worker.tool_finished.connect(self.tool_finished)
         self._worker.error.connect(self.error)
         self._worker.finished.connect(self._on_worker_finished)
+        self._worker.confirm_overwrite.connect(self._on_confirm_overwrite)
+        self._worker.confirm_response.connect(self._worker._on_confirm_response)
+        self._registry.set_confirm_callback(self._worker._ask_user_confirm)
         self._worker.start()
 
     def abort(self):
@@ -278,6 +301,21 @@ class AgentEngine(QObject):
     def _on_worker_finished(self):
         self._worker = None
         self.finished.emit()
+
+    def _on_confirm_overwrite(self, message: str):
+        """Show overwrite confirmation dialog on main thread. Sends response back to worker."""
+        from qgis.PyQt.QtWidgets import QMessageBox
+        box = QMessageBox(
+            QMessageBox.Question,
+            "文件覆盖确认",
+            message,
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        box.button(QMessageBox.Yes).setText("确认覆盖")
+        box.button(QMessageBox.No).setText("取消")
+        reply = box.exec()
+        if self._worker:
+            self._worker.confirm_response.emit(reply == QMessageBox.Yes, False)
 
     def clear_history(self):
         self._messages.clear()

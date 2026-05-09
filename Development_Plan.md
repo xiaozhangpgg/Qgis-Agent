@@ -364,7 +364,7 @@ context_manager.collect_context(source_decision)
 - [x] 上下文感知（图层列表、CRS）
 - [x] 设置对话框（API Key、模型选择）
 - [x] 参数分层校验（图层名存在性、CRS 合法性）
-- [ ] 文件覆盖确认对话框（需跨线程信号机制，待实现）
+- [x] 文件覆盖确认对话框（跨线程信号机制，QEventLoop + signal 桥接）
 - [x] 打断当前回复（用户发新消息时）
 - [x] 双源输入（添加文件按钮 + 项目图层自动检测 + 冲突追问）
 - [x] 对话历史持久化（SQLite）
@@ -396,7 +396,7 @@ context_manager.collect_context(source_decision)
 - [ ] 侧边栏拖拽
 - [ ] Markdown 渲染增强（表格、链接）
 - [ ] 各工具高级参数（overlay、attribute_query 等 7 个工具）
-- [ ] 文件覆盖确认对话框（跨线程信号机制）
+- [x] 文件覆盖确认对话框（跨线程信号机制）— 已提升至 P0 并完成
 - [ ] 单元测试 + 端到端测试
 
 ### 4.3 明确排除（不做）
@@ -461,7 +461,7 @@ context_manager.collect_context(source_decision)
 |------|------|------|
 | 16 | `core/agent_engine.py` | 对话循环、tool_calls 解析、工具执行、结果反馈、滑动窗口 |
 | 17 | — | System Prompt 构建 + 上下文注入（含数据来源说明） |
-| 18 | — | 用户确认机制（文件覆盖确认） |
+| 18 | `core/agent_engine.py` + `core/tool_registry.py` + `tools/batch_reproject.py` | 用户确认机制（跨线程信号 + QEventLoop 阻塞，文件覆盖确认对话框） |
 | 19 | — | 打断机制（abort SSE + 中止工具） |
 | 20 | — | 双源决策逻辑（`_resolve_layer_source()`：NO_LAYERS / ASK_USER / USE_PROJECT / USE_PLUGIN_FILES） |
 

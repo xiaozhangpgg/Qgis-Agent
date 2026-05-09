@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     QgsProject,
@@ -12,6 +12,7 @@ logger = logging.getLogger("QgisAgent")
 def run_batch_clip(
     layer_names: List[str],
     clip_layer: str,
+    _confirm_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Batch clip multiple layers by a clip boundary layer.
 

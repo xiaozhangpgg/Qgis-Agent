@@ -1,7 +1,15 @@
 import logging
-from typing import Any, Callable, Dict, List
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger("QgisAgent")
+
+
+@dataclass
+class ConfirmResult:
+    """Result of a user confirmation prompt."""
+    confirmed: bool
+    apply_to_all: bool = False
 
 TOOL_DEFINITIONS = [
     {
@@ -84,15 +92,27 @@ TOOL_DEFINITIONS = [
 ]
 
 
+ConfirmCallback = Optional[Callable[[str], ConfirmResult]]
+
+
 class ToolRegistry:
     """Registry mapping tool names to Python functions and JSON Schema definitions."""
 
     def __init__(self):
         self._tools: Dict[str, Callable] = {}
         self._definitions: List[Dict[str, Any]] = list(TOOL_DEFINITIONS)
+        self._confirm_cb: ConfirmCallback = None
 
     def register(self, name: str, func: Callable):
         self._tools[name] = func
+
+    def set_confirm_callback(self, callback: ConfirmCallback):
+        """Set a callback for file overwrite confirmation. Called from worker thread."""
+        self._confirm_cb = callback
+
+    @property
+    def confirm_callback(self) -> ConfirmCallback:
+        return self._confirm_cb
 
     def get_definitions(self) -> List[Dict[str, Any]]:
         return self._definitions
@@ -103,6 +123,8 @@ class ToolRegistry:
             return {"success": False, "error": f"未知工具: {name}"}
 
         try:
+            if self._confirm_cb:
+                params["_confirm_callback"] = self._confirm_cb
             result = func(**params)
             return result
         except Exception as e:

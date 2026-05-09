@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from qgis.core import (
     QgsProject,
@@ -14,6 +14,7 @@ def run_buffer(
     distance: float,
     segments: int = 25,
     dissolve: bool = False,
+    _confirm_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Create buffer zones around features in a layer.
 

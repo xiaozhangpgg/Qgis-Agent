@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     QgsProject,
@@ -15,6 +15,7 @@ def run_batch_reproject(
     layer_names: List[str],
     target_crs: str,
     output_dir: Optional[str] = None,
+    _confirm_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Batch reproject multiple layers to a target CRS.
 
@@ -74,6 +75,13 @@ def run_batch_reproject(
                 ext = ".shp"
                 out_path = os.path.join(output_dir, f"{layer_name}_reprojected{ext}")
                 if os.path.exists(out_path):
+                    if _confirm_callback:
+                        result = _confirm_callback(
+                            f"文件已存在，是否覆盖？\n\n{out_path}"
+                        )
+                        if not result.confirmed:
+                            skipped.append(f"{layer_name} (用户取消覆盖)")
+                            continue
                     os.remove(out_path)
                 params["OUTPUT"] = out_path
 
