@@ -1,0 +1,25 @@
+[general]
+name=QGIS Agent
+qgisMinimumVersion=4.0
+description=AI-powered GIS assistant that helps you perform spatial operations through natural language conversation.
+version=1.0.0
+author=xiaozhangpgg
+email=xiaozhangpgg@example.com
+about=QGIS Agent is an AI assistant sidebar plugin for QGIS 4.0. Users describe GIS operations in natural language, and the AI automatically breaks down tasks and calls GIS tools to complete the operations.
+tracker=https://github.com/xiaozhangpgg/QgisAgent/issues
+repository=https://github.com/xiaozhangpgg/QgisAgent
+tags=ai,agent,assistant,natural language,processing
+homepage=https://github.com/xiaozhangpgg/QgisAgent
+category=Plugins
+icon=icon.png
+experimental=True
+deprecated=False
+server=False
+hasProcessingProvider=no
+changelog=
+    1.0.0 - Initial release
+        - Natural language GIS operations
+        - DeepSeek / Tongyi Qianwen / Zhipu API support
+        - 3 core tools: batch reproject, batch clip, buffer
+        - Conversation history with SQLite persistence
+        - Dual source input (project layers + file upload)
