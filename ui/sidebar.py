@@ -1,8 +1,10 @@
+import os
+
 from qgis.PyQt.QtWidgets import (
     QDockWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QScrollArea, QLineEdit,
     QSizePolicy, QFileDialog, QFrame, QTextEdit,
-    QMessageBox,
+    QMessageBox, QMenu,
 )
 from qgis.PyQt.QtCore import Qt, pyqtSignal
 from qgis.PyQt.QtGui import QKeyEvent
@@ -25,12 +27,12 @@ class MessageInput(QTextEdit):
         self.setPlaceholderText("输入消息...")
         self.setMinimumHeight(36)
         self.setMaximumHeight(120)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.textChanged.connect(self._auto_resize)
 
     def keyPressEvent(self, event: QKeyEvent):
-        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            if event.modifiers() & Qt.ShiftModifier:
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                 super().keyPressEvent(event)
             else:
                 if self.toPlainText().strip():
@@ -66,7 +68,7 @@ class SidebarWidget(QDockWidget):
         self.setMinimumWidth(300)
         self._main_window = parent
         self.setFeatures(
-            QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetClosable
         )
 
         self._init_ui()
@@ -96,7 +98,7 @@ class SidebarWidget(QDockWidget):
 
     def _create_top_bar(self):
         bar = QFrame()
-        bar.setFrameShape(QFrame.StyledPanel)
+        bar.setFrameShape(QFrame.Shape.StyledPanel)
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(8, 4, 8, 4)
 
@@ -129,7 +131,7 @@ class SidebarWidget(QDockWidget):
         # Message area
         self._scroll_area = QScrollArea()
         self._scroll_area.setWidgetResizable(True)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._messages_container = QWidget()
         self._messages_layout = QVBoxLayout(self._messages_container)
@@ -142,7 +144,7 @@ class SidebarWidget(QDockWidget):
 
         # File attachment area (hidden by default)
         self._file_area = QFrame()
-        self._file_area.setFrameShape(QFrame.StyledPanel)
+        self._file_area.setFrameShape(QFrame.Shape.StyledPanel)
         self._file_area_layout = QHBoxLayout(self._file_area)
         self._file_area_layout.setContentsMargins(8, 4, 8, 4)
         self._file_area_layout.setSpacing(4)
@@ -151,7 +153,7 @@ class SidebarWidget(QDockWidget):
 
         # Input area
         input_frame = QFrame()
-        input_frame.setFrameShape(QFrame.StyledPanel)
+        input_frame.setFrameShape(QFrame.Shape.StyledPanel)
         input_layout = QHBoxLayout(input_frame)
         input_layout.setContentsMargins(8, 4, 8, 4)
 
@@ -166,6 +168,9 @@ class SidebarWidget(QDockWidget):
         self._send_btn = QPushButton("发送")
         self._send_btn.setFixedHeight(36)
         self._send_btn.setEnabled(False)
+        self._send_btn.setStyleSheet(
+            "QPushButton:disabled { color: gray; }"
+        )
         input_layout.addWidget(self._send_btn)
 
         layout.addWidget(input_frame)
@@ -193,7 +198,7 @@ class SidebarWidget(QDockWidget):
         # History list (scroll area)
         self._history_scroll = QScrollArea()
         self._history_scroll.setWidgetResizable(True)
-        self._history_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._history_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._history_container = QWidget()
         self._history_list_layout = QVBoxLayout(self._history_container)
@@ -251,6 +256,13 @@ class SidebarWidget(QDockWidget):
             title = text[:20] + ("..." if len(text) > 20 else "")
             self._conversation_mgr.update_title(conv_id, title)
 
+        # Persist plugin file paths in conversation metadata (AC-03C-12)
+        if self._attached_files:
+            file_paths = [f.file_path for f in self._attached_files]
+            self._conversation_mgr.update_metadata(
+                conv_id, {"plugin_files": file_paths}
+            )
+
         self._current_ai_text = ""
 
         files = list(self._attached_files)
@@ -304,6 +316,7 @@ class SidebarWidget(QDockWidget):
         self._current_ai_msg.append_text(f"\n⚠ {error_msg}")
         self._current_ai_msg.stop_cursor()
         self._current_ai_msg = None
+        self._set_input_enabled(True)
 
     def _on_engine_finished(self):
         self._set_input_enabled(True)
@@ -316,7 +329,10 @@ class SidebarWidget(QDockWidget):
 
     def _scroll_to_bottom(self):
         scrollbar = self._scroll_area.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        # Only auto-scroll if user is already near the bottom (within 50px)
+        at_bottom = scrollbar.value() >= scrollbar.maximum() - 50
+        if at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
 
     def _on_add_file(self):
         file_filter = (
@@ -341,7 +357,7 @@ class SidebarWidget(QDockWidget):
     def _add_file_tag(self, name: str, managed_file):
         from qgis.PyQt.QtGui import QPalette
         from qgis.PyQt.QtWidgets import QApplication
-        mid_color = QApplication.palette().color(QPalette.Mid).name()
+        mid_color = QApplication.palette().color(QPalette.ColorRole.Mid).name()
         tag = QFrame()
         tag.setStyleSheet(f"QFrame {{ background: {mid_color}; border-radius: 3px; }}")
         layout = QHBoxLayout(tag)
@@ -377,6 +393,17 @@ class SidebarWidget(QDockWidget):
         self._file_area.setVisible(False)
 
     def _on_new_chat(self):
+        # Confirm temp layer cleanup if plugin files exist (AC-03C-11)
+        if self._file_source_mgr.has_files():
+            reply = QMessageBox.question(
+                self,
+                "新建对话",
+                "当前有插件导入的文件，新建对话将移除这些临时图层。是否继续？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
         self._clear_messages()
         self._clear_attached_files()
         self._conversation_mgr.create_new()
@@ -421,8 +448,8 @@ class SidebarWidget(QDockWidget):
 
     def _create_history_item(self, summary):
         item = QFrame()
-        item.setFrameShape(QFrame.StyledPanel)
-        item.setCursor(Qt.PointingHandCursor)
+        item.setFrameShape(QFrame.Shape.StyledPanel)
+        item.setCursor(Qt.CursorShape.PointingHandCursor)
         layout = QVBoxLayout(item)
         layout.setContentsMargins(8, 6, 8, 6)
 
@@ -431,13 +458,6 @@ class SidebarWidget(QDockWidget):
         title.setStyleSheet("font-weight: bold;")
         title_row.addWidget(title)
         title_row.addStretch()
-
-        delete_btn = QPushButton("删除")
-        delete_btn.setFixedSize(36, 20)
-        delete_btn.setStyleSheet("color: red; border: none; font-size: 11px;")
-        delete_btn.setVisible(False)
-        delete_btn.clicked.connect(lambda checked, sid=summary.id: self._delete_conversation(sid))
-        title_row.addWidget(delete_btn)
 
         time_label = QLabel(summary.updated_at_display)
         time_label.setStyleSheet("color: gray; font-size: 11px;")
@@ -450,9 +470,16 @@ class SidebarWidget(QDockWidget):
             preview.setMaximumHeight(20)
             layout.addWidget(preview)
 
-        item.mousePressEvent = lambda e: self._load_conversation(summary.id)
-        item.enterEvent = lambda e: delete_btn.setVisible(True)
-        item.leaveEvent = lambda e: delete_btn.setVisible(False)
+        def on_mouse_press(event):
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._load_conversation(summary.id)
+            elif event.button() == Qt.MouseButton.RightButton:
+                menu = QMenu(self)
+                delete_action = menu.addAction("删除")
+                delete_action.triggered.connect(lambda: self._delete_conversation(summary.id))
+                menu.exec(event.globalPosition().toPoint())
+
+        item.mousePressEvent = on_mouse_press
         return item
 
     def _delete_conversation(self, conv_id: str):
@@ -460,9 +487,9 @@ class SidebarWidget(QDockWidget):
             self,
             "确认删除",
             "确定要删除这条对话吗？此操作不可撤销。",
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self._conversation_mgr.delete_conversation(conv_id)
             self._refresh_history_list()
 
@@ -472,16 +499,29 @@ class SidebarWidget(QDockWidget):
             return
 
         self._clear_messages()
+        self._clear_attached_files()
         self._current_ai_text = ""
         self._message_count = 0
+
+        # Restore plugin files from conversation metadata (AC-03C-12)
+        plugin_files = conv.metadata.get("plugin_files", [])
+        for fpath in plugin_files:
+            if os.path.isfile(fpath):
+                managed = self._file_source_mgr.add_file(fpath)
+                if managed:
+                    self._attached_files.append(managed)
+                    self._add_file_tag(managed.display_name, managed)
+        self._file_area.setVisible(bool(self._attached_files))
 
         for msg in conv.messages:
             if msg.role == "user":
                 self._add_user_message(msg.content)
                 self._message_count += 1
             elif msg.role == "assistant":
-                self._on_ai_text_chunk(msg.content)
-                self._on_ai_text_done()
+                ai_widget = self._add_ai_message_widget()
+                ai_widget.set_text(msg.content)
+                ai_widget.stop_cursor()
+                self._current_ai_msg = None
 
         self._on_show_chat()
 

@@ -2,51 +2,43 @@ from qgis.PyQt.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QSizePolicy, QApplication,
 )
 from qgis.PyQt.QtCore import Qt, QTimer
-from qgis.PyQt.QtGui import QColor, QPalette
+from qgis.PyQt.QtGui import QPalette
 
 
-def _palette_color(role: QPalette.ColorRole) -> QColor:
+def _palette_color(role: QPalette.ColorRole):
     return QApplication.palette().color(role)
 
 
 class UserMessageWidget(QFrame):
-    """User message block - right-aligned with highlight tint background."""
+    """User message block - right-aligned."""
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self._init_ui(text)
 
     def _init_ui(self, text: str):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 5, 10, 5)
 
-        label = QLabel(text)
-        label.setWordWrap(True)
-        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self._label = QLabel(text)
+        self._label.setWordWrap(True)
+        self._label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        highlight = _palette_color(QPalette.Highlight)
-        bg = QColor(highlight)
-        bg.setAlpha(25)
-
-        self.setStyleSheet(
-            f"UserMessageWidget {{ background: {bg.name()}; border-radius: 4px; }}"
-        )
-
-        layout.addWidget(label)
-        self.setAlignment(Qt.AlignRight)
+        layout.addWidget(self._label)
+        self.setAlignment(Qt.AlignmentFlag.AlignRight)
 
     def setAlignment(self, alignment):
         self.layout().setAlignment(alignment)
 
 
 class AiMessageWidget(QFrame):
-    """AI message block - left-aligned with subtle background, supports streaming."""
+    """AI message block - left-aligned, supports streaming."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         self._full_text = ""
         self._cursor_visible = True
         self._init_ui()
@@ -54,27 +46,16 @@ class AiMessageWidget(QFrame):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        is_dark = self._is_dark_theme()
-        bg = "#2D2D2D" if is_dark else "#F5F5F5"
-
-        self.setStyleSheet(
-            f"AiMessageWidget {{ background: {bg}; border-radius: 4px; }}"
-        )
+        layout.setContentsMargins(10, 5, 10, 5)
 
         self._label = QLabel()
         self._label.setWordWrap(True)
-        self._label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self._label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        self._label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self._label.setOpenExternalLinks(True)
         layout.addWidget(self._label)
 
-        self.layout().setAlignment(Qt.AlignLeft)
-
-    def _is_dark_theme(self) -> bool:
-        bg = _palette_color(QPalette.Window)
-        return bg.lightness() < 128
+        self.layout().setAlignment(Qt.AlignmentFlag.AlignLeft)
 
     def _start_cursor_timer(self):
         self._cursor_timer = QTimer(self)
@@ -114,7 +95,7 @@ class AiMessageWidget(QFrame):
         """Basic Markdown-like formatting for display."""
         import re
 
-        base_color = _palette_color(QPalette.Base).name()
+        base_color = _palette_color(QPalette.ColorRole.Base).name()
 
         # Code blocks
         text = re.sub(
@@ -124,7 +105,7 @@ class AiMessageWidget(QFrame):
             flags=re.DOTALL,
         )
 
-        # Inline code
+        # Inline code (after code blocks)
         text = re.sub(
             r'`([^`]+)`',
             rf'<code style="background: {base_color}; padding: 1px 4px; border-radius: 2px; font-family: Consolas, Monaco, monospace;">\1</code>',

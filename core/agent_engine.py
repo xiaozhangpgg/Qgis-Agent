@@ -252,10 +252,6 @@ class AgentEngine(QObject):
                 logger.info(f"Loaded plugin files: {loaded}")
 
         decision = self._file_source_mgr.resolve_source()
-        if decision == SourceDecision.NO_LAYERS:
-            self.error.emit("当前项目无可用图层，请在 QGIS 中加载图层或点击📎按钮添加文件")
-            return
-
         if decision == SourceDecision.ASK_USER:
             from qgis.PyQt.QtWidgets import QMessageBox
             desc = self._file_source_mgr.get_source_description()
@@ -263,11 +259,11 @@ class AgentEngine(QObject):
                 None,
                 "选择数据来源",
                 f"{desc}\n\n选择「是」使用项目图层，选择「否」使用插件导入的文件",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
             )
-            if reply == QMessageBox.Cancel:
+            if reply == QMessageBox.StandardButton.Cancel:
                 return
-            elif reply == QMessageBox.Yes:
+            elif reply == QMessageBox.StandardButton.Yes:
                 self._file_source_mgr.set_source_override("project")
             else:
                 self._file_source_mgr.set_source_override("plugin")
@@ -306,16 +302,16 @@ class AgentEngine(QObject):
         """Show overwrite confirmation dialog on main thread. Sends response back to worker."""
         from qgis.PyQt.QtWidgets import QMessageBox
         box = QMessageBox(
-            QMessageBox.Question,
+            QMessageBox.Icon.Question,
             "文件覆盖确认",
             message,
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-        box.button(QMessageBox.Yes).setText("确认覆盖")
-        box.button(QMessageBox.No).setText("取消")
+        box.button(QMessageBox.StandardButton.Yes).setText("确认覆盖")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
         reply = box.exec()
         if self._worker:
-            self._worker.confirm_response.emit(reply == QMessageBox.Yes, False)
+            self._worker.confirm_response.emit(reply == QMessageBox.StandardButton.Yes, False)
 
     def clear_history(self):
         self._messages.clear()

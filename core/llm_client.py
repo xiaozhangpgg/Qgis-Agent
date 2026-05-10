@@ -129,6 +129,39 @@ class LLMClient:
         except Exception as e:
             return False, str(e)
 
+    def fetch_models(self) -> tuple:
+        """Fetch available models from the API's /v1/models endpoint."""
+        if not self._api_key:
+            return False, "API Key 未设置"
+        if not self._base_url:
+            return False, "Base URL 未设置"
+
+        url = f"{self._base_url.rstrip('/')}/models"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+        }
+
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                models = sorted([m["id"] for m in data.get("data", [])])
+                if models:
+                    return True, models
+                return False, "API 返回了空的模型列表"
+            elif resp.status_code == 401:
+                return False, "API Key 无效"
+            elif resp.status_code == 403:
+                return False, "API Key 权限不足"
+            else:
+                return False, f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except requests.exceptions.Timeout:
+            return False, "连接超时"
+        except requests.exceptions.ConnectionError:
+            return False, "网络连接失败"
+        except Exception as e:
+            return False, str(e)
+
     def chat_stream(
         self,
         messages: List[Dict[str, Any]],

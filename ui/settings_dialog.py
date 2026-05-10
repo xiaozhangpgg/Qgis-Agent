@@ -42,14 +42,22 @@ class SettingsDialog(QDialog):
 
         self._model_combo = QComboBox()
         self._model_combo.setEditable(True)
-        form.addRow("Model:", self._model_combo)
+
+        self._fetch_models_btn = QPushButton("获取模型列表")
+        self._fetch_models_btn.setFixedWidth(100)
+        self._fetch_models_btn.clicked.connect(self._on_fetch_models)
+
+        model_row = QHBoxLayout()
+        model_row.addWidget(self._model_combo, 1)
+        model_row.addWidget(self._fetch_models_btn)
+        form.addRow("Model:", model_row)
 
         self._base_url_input = QLineEdit()
         self._base_url_input.setPlaceholderText("https://api.example.com/v1")
         form.addRow("Base URL:", self._base_url_input)
 
         self._api_key_input = QLineEdit()
-        self._api_key_input.setEchoMode(QLineEdit.Password)
+        self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
         self._api_key_input.setPlaceholderText("输入 API Key")
 
         key_row = QHBoxLayout()
@@ -127,12 +135,35 @@ class SettingsDialog(QDialog):
             self._base_url_input.setText("")
 
     def _toggle_api_key_visibility(self):
-        if self._api_key_input.echoMode() == QLineEdit.Password:
-            self._api_key_input.setEchoMode(QLineEdit.Normal)
+        if self._api_key_input.echoMode() == QLineEdit.EchoMode.Password:
+            self._api_key_input.setEchoMode(QLineEdit.EchoMode.Normal)
             self._toggle_btn.setText("隐藏")
         else:
-            self._api_key_input.setEchoMode(QLineEdit.Password)
+            self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
             self._toggle_btn.setText("显示")
+
+    def _on_fetch_models(self):
+        self._apply_to_client()
+        self._fetch_models_btn.setEnabled(False)
+        self._fetch_models_btn.setText("获取中...")
+
+        success, result = self._llm.fetch_models()
+
+        self._fetch_models_btn.setEnabled(True)
+        self._fetch_models_btn.setText("获取模型列表")
+
+        if success:
+            current_text = self._model_combo.currentText()
+            self._model_combo.blockSignals(True)
+            self._model_combo.clear()
+            self._model_combo.addItems(result)
+            if current_text and current_text in result:
+                self._model_combo.setCurrentText(current_text)
+            elif self._model_combo.count() > 0:
+                self._model_combo.setCurrentIndex(0)
+            self._model_combo.blockSignals(False)
+        else:
+            QMessageBox.warning(self, "获取失败", result)
 
     def _test_connection(self):
         self._apply_to_client()

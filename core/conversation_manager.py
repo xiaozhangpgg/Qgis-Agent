@@ -61,6 +61,7 @@ class ConversationManager:
 
     def _init_db(self):
         with sqlite3.connect(self._db_path) as conn:
+            conn.execute("PRAGMA foreign_keys = ON")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS conversations (
                     id TEXT PRIMARY KEY,
@@ -197,13 +198,42 @@ class ConversationManager:
                 metadata=conv_meta,
             )
 
-    def delete_conversation(self, conv_id: str):
+    def update_metadata(self, conv_id: str, metadata: Dict[str, Any]):
+        """Update conversation metadata (merged with existing)."""
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
-            conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+            row = conn.execute(
+                "SELECT metadata FROM conversations WHERE id = ?", (conv_id,)
+            ).fetchone()
+            existing = json.loads(row[0]) if row and row[0] else {}
+            existing.update(metadata)
+            conn.execute(
+                "UPDATE conversations SET metadata = ? WHERE id = ?",
+                (json.dumps(existing, ensure_ascii=False), conv_id),
+            )
             conn.commit()
-        if self._current_id == conv_id:
-            self._current_id = None
+
+    def get_metadata(self, conv_id: str) -> Dict[str, Any]:
+        """Get conversation metadata."""
+        with sqlite3.connect(self._db_path) as conn:
+            row = conn.execute(
+                "SELECT metadata FROM conversations WHERE id = ?", (conv_id,)
+            ).fetchone()
+            if row and row[0]:
+                return json.loads(row[0])
+            return {}
+
+    def delete_conversation(self, conv_id: str):
+        try:
+            with sqlite3.connect(self._db_path) as conn:
+                conn.execute("PRAGMA foreign_keys = ON")
+                conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+                conn.commit()
+            if self._current_id == conv_id:
+                self._current_id = None
+            logger.info(f"Deleted conversation: {conv_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete conversation {conv_id}: {e}")
+            raise
 
     def search_conversations(self, query: str) -> List[ConversationSummary]:
         with sqlite3.connect(self._db_path) as conn:
