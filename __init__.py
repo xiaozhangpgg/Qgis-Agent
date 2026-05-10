@@ -10,15 +10,16 @@ class QgsMessageLogHandler(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        # QGIS message levels: 0=INFO, 1=WARNING, 2=CRITICAL
+        # QGIS message levels: Qgis.Info=0, Qgis.Warning=1, Qgis.Critical=2
+        from qgis.core import Qgis
         level_map = {
-            logging.DEBUG: 0,
-            logging.INFO: 0,
-            logging.WARNING: 1,
-            logging.ERROR: 2,
-            logging.CRITICAL: 2,
+            logging.DEBUG: Qgis.Info,
+            logging.INFO: Qgis.Info,
+            logging.WARNING: Qgis.Warning,
+            logging.ERROR: Qgis.Critical,
+            logging.CRITICAL: Qgis.Critical,
         }
-        QgsMessageLog.logMessage(msg, "QgisAgent", level_map.get(record.levelno, 0))
+        QgsMessageLog.logMessage(msg, "QgisAgent", level_map.get(record.levelno, Qgis.Info))
 
 
 # Configure QGIS Agent logger
