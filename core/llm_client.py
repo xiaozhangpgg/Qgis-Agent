@@ -49,6 +49,7 @@ DEFAULT_TIMEOUT = 60
 @dataclass
 class LLMResponse:
     content: str = ""
+    reasoning_content: str = ""
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     finish_reason: str = ""
     error: Optional[str] = None
@@ -184,6 +185,7 @@ class LLMClient:
             if chunk.error:
                 return chunk
             result.content += chunk.content
+            result.reasoning_content += chunk.reasoning_content
             if chunk.tool_calls:
                 result.tool_calls = chunk.tool_calls
             if chunk.finish_reason:
@@ -246,6 +248,10 @@ class LLMClient:
                 delta = choices[0].get("delta", {})
                 finish_reason = choices[0].get("finish_reason", "")
 
+                reasoning_content = delta.get("reasoning_content", "")
+                if reasoning_content:
+                    yield LLMResponse(reasoning_content=reasoning_content)
+
                 content = delta.get("content", "")
                 if content:
                     yield LLMResponse(content=content)
@@ -267,10 +273,6 @@ class LLMClient:
                     final_calls = []
                     for idx in sorted(tool_call_buffers.keys()):
                         tc = tool_call_buffers[idx]
-                        try:
-                            tc["function"]["arguments"] = json.loads(tc["function"]["arguments"])
-                        except json.JSONDecodeError:
-                            pass
                         final_calls.append(tc)
                     yield LLMResponse(tool_calls=final_calls, finish_reason="tool_calls")
                 elif finish_reason == "stop":
@@ -334,6 +336,10 @@ class LLMClient:
 
                 delta = choices[0].get("delta", {})
                 finish_reason = choices[0].get("finish_reason", "")
+
+                reasoning_content = delta.get("reasoning_content", "")
+                if reasoning_content:
+                    yield LLMResponse(reasoning_content=reasoning_content)
 
                 content = delta.get("content", "")
                 if content:

@@ -123,9 +123,10 @@ class ToolRegistry:
             return {"success": False, "error": f"未知工具: {name}"}
 
         try:
+            call_params = dict(params)
             if self._confirm_cb:
-                params["_confirm_callback"] = self._confirm_cb
-            result = func(**params)
+                call_params["_confirm_callback"] = self._confirm_cb
+            result = func(**call_params)
             return result
         except Exception as e:
             logger.exception(f"Tool '{name}' execution error")

@@ -3,8 +3,9 @@ from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     QgsProject,
-    QgsApplication,
 )
+
+import processing
 
 logger = logging.getLogger("QgisAgent")
 
@@ -24,9 +25,10 @@ def run_batch_clip(
         Dict with 'success', 'message', 'results' keys.
     """
     project = QgsProject.instance()
-    processing = QgsApplication.processingRegistry()
 
-    if not processing:
+    try:
+        _ = processing.run
+    except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
     boundary = _find_layer(clip_layer)

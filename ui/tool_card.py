@@ -88,7 +88,8 @@ class ToolCardWidget(QFrame):
         self._detail_layout = QVBoxLayout(self._detail_widget)
         self._detail_layout.setContentsMargins(0, 4, 0, 0)
 
-        params_text = json.dumps(self._params, ensure_ascii=False, indent=2)
+        params_text = json.dumps(self._params, ensure_ascii=False, indent=2,
+                                 default=lambda o: f"<{type(o).__name__}>")
         self._params_label = QLabel(params_text)
         self._params_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._params_label.setWordWrap(True)

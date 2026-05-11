@@ -4,8 +4,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
     QgsProject,
+    QgsVectorLayer,
     QgsCoordinateReferenceSystem,
-    QgsApplication,
 )
 
 logger = logging.getLogger("QgisAgent")
@@ -28,10 +28,6 @@ def run_batch_reproject(
         Dict with 'success', 'message', 'results' keys.
     """
     project = QgsProject.instance()
-    processing = QgsApplication.processingRegistry()
-
-    if not processing:
-        return {"success": False, "error": "QGIS Processing 框架不可用"}
 
     crs = QgsCoordinateReferenceSystem(target_crs)
     if not crs.isValid():
@@ -53,6 +49,14 @@ def run_batch_reproject(
             skipped.append(f"{layer_name} (图层不存在)")
             continue
 
+        if not layer.isValid():
+            skipped.append(f"{layer_name} (图层无效，数据源可能已损坏)")
+            continue
+
+        if not isinstance(layer, QgsVectorLayer):
+            skipped.append(f"{layer_name} (非矢量图层，坐标转换仅支持矢量图层)")
+            continue
+
         source_crs = layer.crs()
         if not source_crs.isValid():
             skipped.append(f"{layer_name} (源 CRS 无效)")
@@ -65,8 +69,10 @@ def run_batch_reproject(
         feature_count_before = layer.featureCount() if hasattr(layer, 'featureCount') else 0
 
         try:
+            input_value = _resolve_input(layer)
+
             params = {
-                "INPUT": layer,
+                "INPUT": input_value,
                 "TARGET_CRS": crs,
                 "OUTPUT": "memory:",
             }
@@ -85,18 +91,16 @@ def run_batch_reproject(
                     os.remove(out_path)
                 params["OUTPUT"] = out_path
 
+            import processing
             result = processing.run("native:reprojectlayer", params)
 
             if result and "OUTPUT" in result:
                 output_layer = result["OUTPUT"]
                 if isinstance(output_layer, str):
-                    # File output - load it
-                    from qgis.core import QgsVectorLayer
                     out_name = f"{layer_name}_{target_crs.split(':')[1]}"
                     output_layer = QgsVectorLayer(output_layer, out_name, "ogr")
                     project.addMapLayer(output_layer)
                 else:
-                    # Memory layer - rename and add
                     output_layer.setName(f"{layer_name}_{target_crs.split(':')[1]}")
                     project.addMapLayer(output_layer)
 
@@ -130,6 +134,24 @@ def run_batch_reproject(
         "errors": errors,
         "skipped": skipped,
     }
+
+
+def _resolve_input(layer):
+    """Resolve the best input value for processing.run().
+
+    Prefer layer source path for file-based layers (more robust across
+    threads), fall back to the layer object for memory/temporary layers.
+    """
+    source = layer.source()
+    if source and not source.startswith("memory:"):
+        file_path = source.split("|")[0]
+        for prefix in ("ogr:", "gdal:"):
+            if file_path.startswith(prefix):
+                file_path = file_path[len(prefix):]
+                break
+        if os.path.exists(file_path):
+            return source
+    return layer
 
 
 def _find_layer(name: str):

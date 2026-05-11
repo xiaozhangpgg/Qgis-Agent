@@ -124,6 +124,9 @@ class _WorkerThread(QThread):
                     response.content += chunk.content
                     self.text_chunk.emit(chunk.content)
 
+                if chunk.reasoning_content:
+                    response.reasoning_content += chunk.reasoning_content
+
                 if chunk.tool_calls:
                     response.tool_calls = chunk.tool_calls
 
@@ -132,6 +135,10 @@ class _WorkerThread(QThread):
 
             if response.finish_reason == "stop":
                 if response.content:
+                    assistant_msg = {"role": "assistant", "content": response.content}
+                    if response.reasoning_content:
+                        assistant_msg["reasoning_content"] = response.reasoning_content
+                    self._messages.append(assistant_msg)
                     self.text_done.emit()
                 return
 
@@ -140,6 +147,8 @@ class _WorkerThread(QThread):
 
                 # Add assistant message with tool_calls to history
                 assistant_msg = {"role": "assistant", "content": response.content or ""}
+                if response.reasoning_content:
+                    assistant_msg["reasoning_content"] = response.reasoning_content
                 assistant_msg["tool_calls"] = response.tool_calls
                 self._messages.append(assistant_msg)
 
@@ -157,7 +166,7 @@ class _WorkerThread(QThread):
                         except json.JSONDecodeError:
                             tool_args = {}
 
-                    self.tool_started.emit(tool_name, tool_args)
+                    self.tool_started.emit(tool_name, dict(tool_args))
 
                     start_time = time.time()
                     result = self._registry.execute(tool_name, tool_args)
