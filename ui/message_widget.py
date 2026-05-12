@@ -1,5 +1,5 @@
 from qgis.PyQt.QtWidgets import (
-    QFrame, QVBoxLayout, QLabel, QSizePolicy, QApplication,
+    QFrame, QHBoxLayout, QVBoxLayout, QWidget, QLabel, QSizePolicy, QApplication,
 )
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtGui import QPalette
@@ -9,28 +9,42 @@ def _palette_color(role):
     return QApplication.palette().color(role)
 
 
+AI_ACCENT_COLOR = "#2196F3"
+USER_ACCENT_COLOR = "#81C784"
+
+
 class UserMessageWidget(QFrame):
-    """User message block - right-aligned."""
+    """User message block - left-aligned with green accent bar."""
 
     def __init__(self, text: str, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self._init_ui(text)
+        self._apply_style()
 
     def _init_ui(self, text: str):
-        layout = QVBoxLayout(self)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        self._accent_bar = QFrame()
+        self._accent_bar.setFixedWidth(3)
+        outer.addWidget(self._accent_bar)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(10, 5, 10, 5)
 
         self._label = QLabel(text)
         self._label.setWordWrap(True)
         self._label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self._label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-
         layout.addWidget(self._label)
-        self.setAlignment(Qt.AlignRight)
 
-    def setAlignment(self, alignment):
-        self.layout().setAlignment(alignment)
+        outer.addWidget(content, 1)
+
+    def _apply_style(self):
+        self._accent_bar.setStyleSheet(f"background: {USER_ACCENT_COLOR};")
 
 
 class AiMessageWidget(QFrame):
@@ -42,10 +56,20 @@ class AiMessageWidget(QFrame):
         self._full_text = ""
         self._cursor_visible = True
         self._init_ui()
+        self._apply_style()
         self._start_cursor_timer()
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        self._accent_bar = QFrame()
+        self._accent_bar.setFixedWidth(3)
+        outer.addWidget(self._accent_bar)
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(10, 5, 10, 5)
 
         self._label = QLabel()
@@ -55,7 +79,11 @@ class AiMessageWidget(QFrame):
         self._label.setOpenExternalLinks(True)
         layout.addWidget(self._label)
 
-        self.layout().setAlignment(Qt.AlignLeft)
+        outer.addWidget(content, 1)
+        outer.setAlignment(Qt.AlignLeft)
+
+    def _apply_style(self):
+        self._accent_bar.setStyleSheet(f"background: {AI_ACCENT_COLOR};")
 
     def _start_cursor_timer(self):
         self._cursor_timer = QTimer(self)
@@ -79,6 +107,7 @@ class AiMessageWidget(QFrame):
         self._full_text += f"\n⚠ {error_text}"
         self._update_display()
         self._label.setStyleSheet("QLabel { color: #F44336; }")
+        self._accent_bar.setStyleSheet("background: #F44336;")
 
     def stop_cursor(self):
         self._cursor_timer.stop()
