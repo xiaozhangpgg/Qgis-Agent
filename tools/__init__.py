@@ -8,6 +8,7 @@ from .raster_calculator import run_raster_calculator
 from .format_convert import run_format_convert
 from .batch_export import run_batch_export
 from .statistics import run_statistics
+from .field_calculator import run_field_calculator
 
 __all__ = [
     "run_batch_reproject",
@@ -20,4 +21,5 @@ __all__ = [
     "run_format_convert",
     "run_batch_export",
     "run_statistics",
+    "run_field_calculator",
 ]

@@ -266,6 +266,48 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "field_calculator",
+            "description": "使用 QGIS 表达式对矢量图层进行字段计算，可创建新字段或更新已有字段。支持数值、字符串、日期等字段类型。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "输入矢量图层名称",
+                    },
+                    "field_name": {
+                        "type": "string",
+                        "description": "要创建或更新的字段名称",
+                    },
+                    "formula": {
+                        "type": "string",
+                        "description": "QGIS 表达式，如 '\"population\" * 1.1'、'length($geometry)'、'upper(\"name\")'",
+                    },
+                    "field_type": {
+                        "type": "string",
+                        "enum": ["float", "integer", "string", "date", "time", "datetime", "boolean"],
+                        "description": "可选，字段类型，默认 float。适用于创建新字段时指定类型",
+                    },
+                    "field_length": {
+                        "type": "integer",
+                        "description": "可选，字段长度，默认 10",
+                    },
+                    "field_precision": {
+                        "type": "integer",
+                        "description": "可选，小数精度，默认 3（仅对 float 类型有效）",
+                    },
+                    "output_name": {
+                        "type": "string",
+                        "description": "可选，输出图层名称。不指定则命名为 '<原图层名>_calc_<字段名>'",
+                    },
+                },
+                "required": ["layer_name", "field_name", "formula"],
+            },
+        },
+    },
 ]
 
 

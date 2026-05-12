@@ -19,6 +19,7 @@ from ..tools.raster_calculator import run_raster_calculator
 from ..tools.format_convert import run_format_convert
 from ..tools.batch_export import run_batch_export
 from ..tools.statistics import run_statistics
+from ..tools.field_calculator import run_field_calculator
 
 logger = logging.getLogger("QgisAgent")
 
@@ -260,6 +261,7 @@ class AgentEngine(QObject):
         self._registry.register("format_convert", run_format_convert)
         self._registry.register("batch_export", run_batch_export)
         self._registry.register("statistics", run_statistics)
+        self._registry.register("field_calculator", run_field_calculator)
 
     def run(self, user_text: str, attached_files: list = None):
         if not self._llm.is_configured:
