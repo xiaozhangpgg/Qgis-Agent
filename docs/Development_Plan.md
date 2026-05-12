@@ -2,7 +2,7 @@
 
 **产品名称：** QGIS Agent
 **版本：** 1.0.0
-**目标平台：** QGIS 4.0.0-1 (Windows / macOS / Linux)
+**目标平台：** QGIS 3.44.9 'Solothurn' LTR (Windows / macOS / Linux)
 **文档版本：** 1.0
 **日期：** 2026-05-08
 
@@ -12,13 +12,13 @@
 
 ### 1.1 背景
 
-GIS 用户在日常工作中面临大量重复性操作（批量转坐标系、批量裁剪等），且 QGIS 的 Processing 工具箱对新手不够友好。本插件在 QGIS 4.0 右侧以侧边栏形式提供一个 AI 对话助手，用户通过自然语言描述需求，AI 自动拆解为子任务并调用相应的 GIS 工具完成操作。
+GIS 用户在日常工作中面临大量重复性操作（批量转坐标系、批量裁剪等），且 QGIS 的 Processing 工具箱对新手不够友好。本插件在 QGIS 3.x 右侧以侧边栏形式提供一个 AI 对话助手，用户通过自然语言描述需求，AI 自动拆解为子任务并调用相应的 GIS 工具完成操作。
 
 ### 1.2 技术选型
 
 | 维度 | 选择 | 理由 |
 |------|------|------|
-| UI 框架 | `qgis.PyQt` (Qt6/PyQt6) | QGIS 4.0 官方兼容层，跨平台 |
+| UI 框架 | `qgis.PyQt` (Qt5/PyQt5) | QGIS 3.x 官方兼容层，跨平台 |
 | LLM 协议 | OpenAI 兼容协议 | 天然支持 DeepSeek/通义千问/智谱等国产模型 |
 | HTTP 客户端 | `requests` + SSE | QGIS 内置，无需额外依赖 |
 | 数据存储 | SQLite (Python 内置 `sqlite3`) | 对话历史持久化，单文件，零依赖 |
@@ -269,7 +269,7 @@ context_manager.collect_context(source_decision)
 - 路径：插件数据目录下 `conversations.db`
 - 表：`conversations` + `messages`
 
-**标题生成：** 用户首条消息后截取前 20 字作为标题（LLM 异步生成作为 P1 增强）
+**标题生成：** 用户首条消息后异步调用 LLM 生成标题，fallback 到首条消息截取前 20 字（PRD AC-03B-06，P0）
 
 ### 3.7 UI 样式规范
 
@@ -346,11 +346,18 @@ context_manager.collect_context(source_decision)
 
 ### 4.1 P0 — V1 必须交付
 
-| # | 工具 | 函数名 | QGIS 算法 |
-|---|------|--------|-----------|
-| 1 | 批量坐标转换 | `batch_reproject` | `native:reprojectlayer` |
-| 2 | 批量裁剪 | `batch_clip` | `native:clip` |
-| 3 | 缓冲区分析 | `buffer` | `native:buffer` |
+| # | 工具 | 函数名 | QGIS 算法 | 状态 |
+|---|------|--------|-----------|------|
+| 1 | 批量坐标转换 | `batch_reproject` | `native:reprojectlayer` | [x] 已完成 |
+| 2 | 批量裁剪 | `batch_clip` | `native:clip` | [x] 已完成 |
+| 3 | 缓冲区分析 | `buffer` | `native:buffer` | [x] 已完成 |
+| 4 | 叠加分析 | `overlay` | `native:intersection/union/difference` | [x] 已完成 |
+| 5 | 属性查询 | `attribute_query` | `native:extractbyexpression` | [x] 已完成 |
+| 6 | 空间查询 | `spatial_query` | `native:extractbylocation` | [x] 已完成 |
+| 7 | 栅格计算 | `raster_calculator` | `native:rastercalc` | [x] 已完成 |
+| 8 | 格式转换 | `format_convert` | `gdal:convertformat` | [x] 已完成 |
+| 9 | 批量导出 | `batch_export` | `native:savefeatures` | [x] 已完成 |
+| 10 | 统计汇总 | `statistics` | `native:statisticsbycategories` | [x] 已完成 |
 
 **V1 P0 功能清单：**
 - [x] 插件安装/加载/卸载
@@ -359,47 +366,59 @@ context_manager.collect_context(source_decision)
 - [x] 工具调用卡片（折叠/展开/状态指示）
 - [x] 任务进度展示
 - [x] DeepSeek API 集成 + function calling
-- [x] 3 个核心 GIS 工具
+- [x] 3 个核心 GIS 工具（batch_reproject、batch_clip、buffer）
+- [x] 剩余 7 个 GIS 工具（overlay、attribute_query、spatial_query、raster_calculator、format_convert、batch_export、statistics）
 - [x] Agent 引擎（对话循环 + 工具调度）
 - [x] 上下文感知（图层列表、CRS）
 - [x] 设置对话框（API Key、模型选择）
 - [x] 参数分层校验（图层名存在性、CRS 合法性）
 - [x] 文件覆盖确认对话框（跨线程信号机制，QEventLoop + signal 桥接）
+- [x] 双源确认对话框（冲突追问机制）
 - [x] 打断当前回复（用户发新消息时）
 - [x] 双源输入（添加文件按钮 + 项目图层自动检测 + 冲突追问）
 - [x] 对话历史持久化（SQLite）
 - [x] 对话历史列表（搜索、删除、切换）
+- [x] LLM 自动生成对话标题（fallback 到首条消息截取）
 - [x] UI 样式跟随 QGIS 主题（浅色/深色自适应）
 
 ### 4.2 P1 — V1.1 迭代
 
-| # | 工具 | 函数名 | QGIS 算法 |
-|---|------|--------|-----------|
-| 4 | 叠加分析 | `overlay` | `native:intersection/union/difference` |
-| 5 | 属性查询 | `attribute_query` | `native:extractbyexpression` |
-| 6 | 空间查询 | `spatial_query` | `native:extractbylocation` |
-| 7 | 栅格计算 | `raster_calculator` | `native:rastercalc` |
-| 8 | 格式转换 | `format_convert` | `gdal:convertformat` |
-| 9 | 批量导出 | `batch_export` | `native:savefeatures` |
-| 10 | 统计汇总 | `statistics` | `native:statisticsbycategories` |
+| # | 工具 | 函数名 | QGIS 算法 | 状态 |
+|---|------|--------|-----------|------|
+| 4 | 叠加分析 | `overlay` | `native:intersection/union/difference` | [x] 已完成 |
+| 5 | 属性查询 | `attribute_query` | `native:extractbyexpression` | [x] 已完成 |
+| 6 | 空间查询 | `spatial_query` | `native:extractbylocation` | [x] 已完成 |
+| 7 | 栅格计算 | `raster_calculator` | `native:rastercalc` | [x] 已完成 |
+| 8 | 格式转换 | `format_convert` | `gdal:convertformat` | [x] 已完成 |
+| 9 | 批量导出 | `batch_export` | `native:savefeatures` | [x] 已完成 |
+| 10 | 统计汇总 | `statistics` | `native:statisticsbycategories` | [x] 已完成 |
 
 **V1.1 功能清单：**
 - [ ] 通义千问和智谱 API 集成（llm_client.py 已预留配置，待测试验证）
 - [ ] 自定义 Provider 支持（settings_dialog.py 已支持 UI，待测试验证）
 - [x] 对话历史持久化（SQLite）— 已提升至 P0 并完成
 - [x] 对话历史列表（搜索、删除、切换）— 已提升至 P0 并完成
-- [ ] LLM 自动生成对话标题（当前 fallback 到首条消息截取）
+- [x] LLM 自动生成对话标题 — 已提升至 P0 并完成
 - [ ] 工具卡片撤销按钮
 - [ ] 本地日志文件 + 调试模式
 - [ ] 首次使用隐私弹窗
 - [ ] 中英文国际化
 - [ ] 侧边栏拖拽
 - [ ] Markdown 渲染增强（表格、链接）
-- [ ] 各工具高级参数（overlay、attribute_query 等 7 个工具）
+- [ ] 各工具高级参数（segments、dissolve、分组统计等）
 - [x] 文件覆盖确认对话框（跨线程信号机制）— 已提升至 P0 并完成
+- [x] 双源确认对话框（冲突追问机制）— 已提升至 P0 并完成
 - [ ] 单元测试 + 端到端测试
 
-### 4.3 明确排除（不做）
+### 4.3 已修复的关键 Bug
+
+| Bug | 涉及文件 | 修复内容 | 参考文档 |
+|-----|----------|----------|----------|
+| ToolCard JSON 序列化崩溃 | `core/agent_engine.py`, `ui/tool_card.py` | 信号发射前使用 `dict(tool_args)` 浅拷贝；`json.dumps` 增加 `default` 回调处理不可序列化对象 | `docs/fix-tool-card-json-serialize-error.md` |
+
+**设计原则更新：** 跨线程信号传递 dict 时必须发射副本，避免后续修改导致时序问题；UI 层序列化需具备防御性处理能力。
+
+### 4.4 明确排除（不做）
 
 - 图片/截图上传
 - 自定义工具脚本
@@ -416,7 +435,7 @@ context_manager.collect_context(source_decision)
 
 | 步骤 | 文件 | 内容 |
 |------|------|------|
-| 1 | `metadata.txt` | 插件元数据（qgisMinimumVersion=4.0） |
+| 1 | `metadata.txt` | 插件元数据（qgisMinimumVersion=3.28） |
 | 2 | `__init__.py` + `plugin.py` | classFactory 入口 + 插件生命周期（initGui/unload） |
 | 3 | `core/llm_client.py` | OpenAI 兼容协议、SSE 流式解析、多 Provider、function calling |
 | 4 | `ui/settings_dialog.py` | API Key 输入、Provider/Model 选择、测试连接 |
@@ -461,9 +480,10 @@ context_manager.collect_context(source_decision)
 |------|------|------|
 | 16 | `core/agent_engine.py` | 对话循环、tool_calls 解析、工具执行、结果反馈、滑动窗口 |
 | 17 | — | System Prompt 构建 + 上下文注入（含数据来源说明） |
-| 18 | `core/agent_engine.py` + `core/tool_registry.py` + `tools/batch_reproject.py` | 用户确认机制（跨线程信号 + QEventLoop 阻塞，文件覆盖确认对话框） |
+| 18 | `core/agent_engine.py` + `core/tool_registry.py` + `tools/batch_reproject.py` | 用户确认机制（跨线程信号 + QEventLoop 阻塞，文件覆盖确认对话框 + 双源冲突追问对话框） |
 | 19 | — | 打断机制（abort SSE + 中止工具） |
 | 20 | — | 双源决策逻辑（`_resolve_layer_source()`：NO_LAYERS / ASK_USER / USE_PROJECT / USE_PLUGIN_FILES） |
+| 21 | `core/agent_engine.py` + `ui/tool_card.py` | 跨线程信号安全：发射 dict 浅拷贝，UI 层增加防御性序列化 |
 
 **验收：** 端到端链路打通 — 用户输入自然语言 → AI 理解意图 → 调用工具 → 返回结果。双源输入场景（仅项目图层/仅插件文件/两者都有）均正确处理。
 
@@ -505,7 +525,7 @@ __init__.py
 ## 7. System Prompt 设计
 
 ```
-你是 QGIS Agent，一个专业的 GIS 助手。你运行在 QGIS 4.0 中。
+你是 QGIS Agent，一个专业的 GIS 助手。你运行在 QGIS 中。
 
 ## 你的能力
 你可以调用以下 GIS 工具来帮助用户完成空间数据处理任务：
@@ -539,39 +559,43 @@ __init__.py
 
 ### 8.1 性能
 
-| 指标 | 目标 |
-|------|------|
-| 插件加载时间 | < 2 秒 |
-| 首 token 响应 | < 3 秒（取决于 API） |
-| 工具执行 | 后台线程，不阻塞 QGIS UI |
-| 100 图层批量操作 | < 5 分钟 |
-| 侧边栏内存占用 | < 100MB |
+| 指标 | 目标 | 对应 PRD 验收标准 |
+|------|------|------------------|
+| 插件加载时间 | < 2 秒 | AC-N01-01 (P1) |
+| 首 token 响应 | < 5 秒（取决于网络） | AC-N01-02 (P1) |
+| 工具执行 | 后台线程，不阻塞 QGIS UI | AC-N01-05 (P0) |
+| 100 图层批量操作 | < 60 秒（普通硬件） | AC-N01-03 (P2) |
+| 对话列表滚动流畅 | 500 条消息内无卡顿 | AC-N01-04 (P1) |
+| 侧边栏内存占用 | < 100MB | — |
 
 ### 8.2 稳定性
 
-| 指标 | 目标 |
-|------|------|
-| Agent 循环上限 | 10 次自动终止 |
-| 工具执行超时 | 5 分钟自动终止 |
-| 崩溃隔离 | 全局 try-except，不导致 QGIS 崩溃 |
-| API Key 安全 | 不写入日志或错误报告 |
+| 指标 | 目标 | 对应 PRD 验收标准 |
+|------|------|------------------|
+| Agent 循环上限 | 10 次自动终止 | AC-07-07 (P1) |
+| 工具执行超时 | 5 分钟自动终止 | — |
+| 崩溃隔离 | 全局 try-except，不导致 QGIS 崩溃 | AC-N02-01, AC-N02-02 (P0) |
+| API Key 安全 | 不写入日志或错误报告 | AC-N03-01, AC-N03-02 (P0) |
+| 网络断开处理 | 侧边栏显示离线提示，不卡死 | AC-N02-04 (P1) |
+| 内存泄漏控制 | 连续 100 次对话内存增长 < 50MB | AC-N02-03 (P2) |
 
 ### 8.3 安全性
 
-| 措施 | 说明 |
-|------|------|
-| API Key 存储 | QgsSettings 本地存储，不写入项目文件 |
-| API Key 保护 | 不出现在对话内容中 |
-| 路径脱敏 | 不向 LLM 发送完整文件路径，仅发送图层名 |
-| 隐私提示 | 设置对话框底部提示"内容将发送到第三方 AI 服务" |
+| 措施 | 说明 | 对应 PRD 验收标准 |
+|------|------|------------------|
+| API Key 存储 | QgsSettings 本地存储，不写入项目文件 | AC-N03-01 (P0) |
+| API Key 保护 | 不出现在对话内容中 | AC-N03-02 (P0) |
+| 路径脱敏 | 不向 LLM 发送完整文件路径，仅发送图层名 | AC-N03-03 (P1) |
+| 隐私提示 | 设置对话框底部提示"内容将发送到第三方 AI 服务" | — |
 
 ### 8.4 兼容性
 
-| 平台 | 优先级 |
-|------|--------|
-| Windows 10/11 | P0 |
-| macOS (Intel/Apple Silicon) | P1 |
-| Ubuntu 22.04+ | P1 |
+| 平台 | 优先级 | 对应 PRD 验收标准 |
+|------|--------|------------------|
+| Windows 10/11 | P0 | AC-N04-01 (P0) |
+| macOS (Intel/Apple Silicon) | P1 | AC-N04-02 (P1) |
+| Ubuntu 22.04+ | P1 | AC-N04-03 (P1) |
+| PyQt 兼容层 | P0 | 使用 `qgis.PyQt` 导入，不直接依赖 PyQt5 | AC-N04-04 (P0) |
 
 ---
 
@@ -614,10 +638,11 @@ __init__.py
 | 风险 | 应对 |
 |------|------|
 | 部分模型不支持原生 function calling | 回退到 JSON 提取模式，在 system prompt 中要求 LLM 输出 JSON 格式的工具调用 |
-| QGIS 4.0 未发布，API 可能变化 | 使用 `qgis.PyQt` 兼容层，避免直接使用 PyQt6；关注 QGIS RFC |
+| QGIS 版本差异 | 使用 `qgis.PyQt` 兼容层，避免直接使用 PyQt5 特定 API |
 | SSE 流式解析在 Windows 上的兼容性 | 使用 `requests` 的 `iter_lines()` 而非 `httpx` |
 | 大图层批量处理耗时 | 使用 QThread + Worker 模式异步执行，UI 显示进度条 |
 | LLM 幻觉（不存在的图层名、无效 CRS） | Agent 引擎层做格式校验，不合法参数不调用工具 |
 | 长对话 token 消耗过大 | 滑动窗口策略，每次只发最近 20 条消息 |
 | 大文件加载到 QGIS 可能导致内存占用过高 | 使用 QgsTask 异步加载，加载期间禁用发送按钮，提供进度反馈 |
 | 用户在对话中途移除文件导致工具执行失败 | Agent 引擎捕获异常，提示用户文件已移除，建议重新添加 |
+| 跨线程信号传递 dict 被后续修改 | **已修复：** 信号发射前使用 `dict()` 浅拷贝，UI 层序列化增加防御性 `default` 回调 |

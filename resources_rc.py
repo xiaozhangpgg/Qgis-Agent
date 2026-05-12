@@ -1,6 +1,6 @@
 # Resource file for QGIS Agent plugin.
 # Auto-generated from resources.qrc. To recompile:
-#   pyrcc6 resources.qrc -o resources_rc.py
+#   pyrcc5 resources.qrc -o resources_rc.py
 # This file can also be empty if resources are loaded by file path.
 
 qt_resource_data = b""

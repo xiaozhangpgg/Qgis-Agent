@@ -1,0 +1,100 @@
+import logging
+import os
+import tempfile
+from typing import Any, Callable, Dict, List, Optional
+
+from qgis.core import QgsProject
+
+import processing
+
+logger = logging.getLogger("QgisAgent")
+
+
+def run_raster_calculator(
+    expression: str,
+    input_rasters: List[str],
+    output_name: Optional[str] = None,
+    _confirm_callback: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """Execute raster calculator with given expression.
+
+    Args:
+        expression: Raster calculator expression, e.g. '"raster_a@1" * 2 + "raster_b@1"'.
+                    Band references use the raster name from input_rasters list.
+        input_rasters: List of input raster layer names.
+        output_name: Optional output layer name.
+
+    Returns:
+        Dict with 'success', 'message', 'results' keys.
+    """
+    project = QgsProject.instance()
+
+    try:
+        _ = processing.run
+    except Exception:
+        return {"success": False, "error": "QGIS Processing 框架不可用"}
+
+    if not expression or not expression.strip():
+        return {"success": False, "error": "计算表达式不能为空"}
+
+    if not input_rasters:
+        return {"success": False, "error": "至少需要一个输入栅格图层"}
+
+    layers = {}
+    for name in input_rasters:
+        layer = _find_layer(name)
+        if layer is None:
+            return {"success": False, "error": f"栅格图层 '{name}' 不存在"}
+        layers[name] = layer
+
+    try:
+        # Build INPUT layers dict for raster calculator
+        # Format: {"layer_name@band": layer_object}
+        input_dict = {}
+        for name, layer in layers.items():
+            input_dict[f"{name}@1"] = layer
+
+        output_path = os.path.join(tempfile.gettempdir(), f"qgisagent_raster_{id(expression)}.tif")
+
+        params = {
+            "EXPRESSION": expression,
+            "LAYERS": list(layers.values()),
+            "OUTPUT": output_path,
+        }
+
+        result = processing.run("native:rastercalc", params)
+
+        if result and "OUTPUT" in result:
+            output_path = result["OUTPUT"]
+            from qgis.core import QgsRasterLayer
+
+            out_name = output_name or f"raster_calc_result"
+            output_layer = QgsRasterLayer(output_path, out_name)
+
+            if output_layer.isValid():
+                project.addMapLayer(output_layer)
+                return {
+                    "success": True,
+                    "message": f"栅格计算完成，结果图层: '{out_name}'",
+                    "results": [{
+                        "input_rasters": input_rasters,
+                        "expression": expression,
+                        "output": out_name,
+                    }],
+                }
+            else:
+                return {"success": False, "error": "输出栅格图层无效"}
+        else:
+            return {"success": False, "error": "Processing 返回空结果"}
+
+    except Exception as e:
+        logger.exception(f"Raster calculator error")
+        return {"success": False, "error": f"栅格计算失败: {str(e)}"}
+
+
+def _find_layer(name: str):
+    project = QgsProject.instance()
+    for layer in project.mapLayers().values():
+        if layer.name() == name:
+            return layer
+    return None

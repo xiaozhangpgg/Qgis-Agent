@@ -8,12 +8,12 @@ from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QColor, QPalette
 
 
-def _palette_color(role: QPalette.ColorRole) -> QColor:
+def _palette_color(role) -> QColor:
     return QApplication.palette().color(role)
 
 
 def _is_dark() -> bool:
-    bg = _palette_color(QPalette.ColorRole.Window)
+    bg = _palette_color(QPalette.Window)
     return bg.lightness() < 128
 
 
@@ -37,7 +37,7 @@ class ToolCardWidget(QFrame):
         self._apply_style()
 
     def _init_ui(self):
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
 
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -57,7 +57,7 @@ class ToolCardWidget(QFrame):
 
         # Header row (clickable)
         self._header = QWidget()
-        self._header.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._header.setCursor(Qt.PointingHandCursor)
         header_layout = QHBoxLayout(self._header)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(6)
@@ -77,7 +77,7 @@ class ToolCardWidget(QFrame):
 
         self._expand_btn = QToolButton()
         self._expand_btn.setText("▸")
-        self._expand_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self._expand_btn.setToolButtonStyle(Qt.ToolButtonTextOnly)
         self._expand_btn.setFixedSize(16, 16)
         header_layout.addWidget(self._expand_btn)
 
@@ -91,9 +91,9 @@ class ToolCardWidget(QFrame):
         params_text = json.dumps(self._params, ensure_ascii=False, indent=2,
                                  default=lambda o: f"<{type(o).__name__}>")
         self._params_label = QLabel(params_text)
-        self._params_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._params_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self._params_label.setWordWrap(True)
-        base_color = _palette_color(QPalette.ColorRole.Base).name()
+        base_color = _palette_color(QPalette.Base).name()
         self._params_label.setStyleSheet(
             f"font-family: Consolas, Monaco, monospace; font-size: 12px; "
             f"background: {base_color}; padding: 6px; border-radius: 3px;"
@@ -102,7 +102,7 @@ class ToolCardWidget(QFrame):
 
         self._result_label = QLabel("")
         self._result_label.setWordWrap(True)
-        self._result_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._result_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self._result_label.setVisible(False)
         self._detail_layout.addWidget(self._result_label)
 

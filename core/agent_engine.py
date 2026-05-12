@@ -12,13 +12,20 @@ from .file_source_manager import FileSourceManager, SourceDecision
 from ..tools.batch_reproject import run_batch_reproject
 from ..tools.batch_clip import run_batch_clip
 from ..tools.buffer import run_buffer
+from ..tools.overlay import run_overlay
+from ..tools.attribute_query import run_attribute_query
+from ..tools.spatial_query import run_spatial_query
+from ..tools.raster_calculator import run_raster_calculator
+from ..tools.format_convert import run_format_convert
+from ..tools.batch_export import run_batch_export
+from ..tools.statistics import run_statistics
 
 logger = logging.getLogger("QgisAgent")
 
 MAX_AGENT_LOOPS = 10
 MAX_HISTORY_MESSAGES = 20
 
-SYSTEM_PROMPT_TEMPLATE = """你是 QGIS Agent，一个专业的 GIS 助手。你运行在 QGIS 4.0 中。
+SYSTEM_PROMPT_TEMPLATE = """你是 QGIS Agent，一个专业的 GIS 助手。你运行在 QGIS 中。
 
 ## 你的能力
 你可以调用以下 GIS 工具来帮助用户完成空间数据处理任务：
@@ -82,7 +89,7 @@ class _WorkerThread(QThread):
         self._confirm_result = ConfirmResult(confirmed=False)
         self._confirm_loop = QEventLoop()
         self.confirm_overwrite.emit(message)
-        self._confirm_loop.exec()
+        self._confirm_loop.exec_()
         self._confirm_loop = None
         return self._confirm_result
 
@@ -246,6 +253,13 @@ class AgentEngine(QObject):
         self._registry.register("batch_reproject", run_batch_reproject)
         self._registry.register("batch_clip", run_batch_clip)
         self._registry.register("buffer", run_buffer)
+        self._registry.register("overlay", run_overlay)
+        self._registry.register("attribute_query", run_attribute_query)
+        self._registry.register("spatial_query", run_spatial_query)
+        self._registry.register("raster_calculator", run_raster_calculator)
+        self._registry.register("format_convert", run_format_convert)
+        self._registry.register("batch_export", run_batch_export)
+        self._registry.register("statistics", run_statistics)
 
     def run(self, user_text: str, attached_files: list = None):
         if not self._llm.is_configured:
@@ -268,11 +282,11 @@ class AgentEngine(QObject):
                 None,
                 "选择数据来源",
                 f"{desc}\n\n选择「是」使用项目图层，选择「否」使用插件导入的文件",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
             )
-            if reply == QMessageBox.StandardButton.Cancel:
+            if reply == QMessageBox.Cancel:
                 return
-            elif reply == QMessageBox.StandardButton.Yes:
+            elif reply == QMessageBox.Yes:
                 self._file_source_mgr.set_source_override("project")
             else:
                 self._file_source_mgr.set_source_override("plugin")
@@ -311,16 +325,16 @@ class AgentEngine(QObject):
         """Show overwrite confirmation dialog on main thread. Sends response back to worker."""
         from qgis.PyQt.QtWidgets import QMessageBox
         box = QMessageBox(
-            QMessageBox.Icon.Question,
+            QMessageBox.Question,
             "文件覆盖确认",
             message,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.Yes | QMessageBox.No,
         )
-        box.button(QMessageBox.StandardButton.Yes).setText("确认覆盖")
-        box.button(QMessageBox.StandardButton.No).setText("取消")
-        reply = box.exec()
+        box.button(QMessageBox.Yes).setText("确认覆盖")
+        box.button(QMessageBox.No).setText("取消")
+        reply = box.exec_()
         if self._worker:
-            self._worker.confirm_response.emit(reply == QMessageBox.StandardButton.Yes, False)
+            self._worker.confirm_response.emit(reply == QMessageBox.Yes, False)
 
     def clear_history(self):
         self._messages.clear()

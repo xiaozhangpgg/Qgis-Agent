@@ -89,6 +89,183 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "overlay",
+            "description": "对两个矢量图层执行叠加分析（相交、联合、差异）。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_a": {
+                        "type": "string",
+                        "description": "第一个图层名称（输入图层）",
+                    },
+                    "layer_b": {
+                        "type": "string",
+                        "description": "第二个图层名称（叠加图层）",
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": ["intersection", "union", "difference"],
+                        "description": "叠加操作类型: intersection(相交), union(联合), difference(差异)",
+                    },
+                },
+                "required": ["layer_a", "layer_b"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "attribute_query",
+            "description": "根据属性表达式从图层中提取满足条件的要素。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "输入图层名称",
+                    },
+                    "expression": {
+                        "type": "string",
+                        "description": "QGIS 表达式，如 '\"population\" > 10000' 或 '\"type\" = \\'road\\''",
+                    },
+                },
+                "required": ["layer_name", "expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "spatial_query",
+            "description": "根据空间关系从图层中提取要素。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "输入图层名称",
+                    },
+                    "reference_layer": {
+                        "type": "string",
+                        "description": "参考图层名称",
+                    },
+                    "predicate": {
+                        "type": "string",
+                        "enum": ["intersects", "contains", "equals", "touches", "overlaps", "within", "crosses"],
+                        "description": "空间关系谓词",
+                    },
+                },
+                "required": ["layer_name", "reference_layer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "raster_calculator",
+            "description": "使用表达式对栅格图层进行计算。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {
+                        "type": "string",
+                        "description": "栅格计算表达式，如 '\"raster_a@1\" * 2'",
+                    },
+                    "input_rasters": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "输入栅格图层名称列表",
+                    },
+                    "output_name": {
+                        "type": "string",
+                        "description": "可选，输出图层名称",
+                    },
+                },
+                "required": ["expression", "input_rasters"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "format_convert",
+            "description": "将矢量图层转换为其他格式（GeoJSON、GPKG、KML、CSV、SHP、GML）。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "输入图层名称",
+                    },
+                    "output_format": {
+                        "type": "string",
+                        "enum": ["geojson", "gpkg", "kml", "csv", "shp", "gml"],
+                        "description": "输出格式",
+                    },
+                    "output_dir": {
+                        "type": "string",
+                        "description": "可选，输出目录路径。不指定则结果添加到当前项目",
+                    },
+                },
+                "required": ["layer_name", "output_format"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "batch_export",
+            "description": "批量将多个图层导出为指定格式的文件。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要导出的图层名称列表",
+                    },
+                    "output_format": {
+                        "type": "string",
+                        "enum": ["geojson", "gpkg", "kml", "csv", "shp", "gml"],
+                        "description": "输出格式",
+                    },
+                    "output_dir": {
+                        "type": "string",
+                        "description": "输出目录路径",
+                    },
+                },
+                "required": ["layer_names", "output_format", "output_dir"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "statistics",
+            "description": "对图层字段进行统计汇总，可按分类字段分组。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "输入图层名称",
+                    },
+                    "value_field": {
+                        "type": "string",
+                        "description": "要统计的数值字段名",
+                    },
+                    "category_field": {
+                        "type": "string",
+                        "description": "可选，按此字段分组统计",
+                    },
+                },
+                "required": ["layer_name", "value_field"],
+            },
+        },
+    },
 ]
 
 

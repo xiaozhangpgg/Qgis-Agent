@@ -52,13 +52,13 @@ class QgisAgentPlugin:
             self._create_sidebar()
 
             # Log successful startup to QGIS message log
-            QgsMessageLog.logMessage("QGIS Agent 插件加载成功", "QgisAgent", Qgis.MessageLevel.Info)
+            QgsMessageLog.logMessage("QGIS Agent 插件加载成功", "QgisAgent", Qgis.Info)
         except Exception as e:
             error_msg = f"QGIS Agent 插件初始化失败:\n{str(e)}\n\n{traceback.format_exc()}"
             logger.exception("Failed to initialize QGIS Agent plugin")
-            QgsMessageLog.logMessage(error_msg, "QgisAgent", Qgis.MessageLevel.Critical)
+            QgsMessageLog.logMessage(error_msg, "QgisAgent", Qgis.Critical)
             self.iface.messageBar().pushMessage(
-                "QGIS Agent", f"插件初始化失败: {str(e)}", level=Qgis.MessageLevel.Critical, duration=10
+                "QGIS Agent", f"插件初始化失败: {str(e)}", level=Qgis.Critical, duration=10
             )
 
     def unload(self):
@@ -77,7 +77,7 @@ class QgisAgentPlugin:
     def _create_sidebar(self):
         from .ui.sidebar import SidebarWidget
         self.sidebar = SidebarWidget(self.iface, self._llm, self.iface.mainWindow())
-        self.iface.mainWindow().addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.sidebar)
+        self.iface.mainWindow().addDockWidget(Qt.RightDockWidgetArea, self.sidebar)
         self.sidebar.show()
         self.sidebar.raise_()
         self.action.setChecked(True)

@@ -57,7 +57,7 @@ class SettingsDialog(QDialog):
         form.addRow("Base URL:", self._base_url_input)
 
         self._api_key_input = QLineEdit()
-        self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self._api_key_input.setEchoMode(QLineEdit.Password)
         self._api_key_input.setPlaceholderText("输入 API Key")
 
         key_row = QHBoxLayout()
@@ -135,11 +135,11 @@ class SettingsDialog(QDialog):
             self._base_url_input.setText("")
 
     def _toggle_api_key_visibility(self):
-        if self._api_key_input.echoMode() == QLineEdit.EchoMode.Password:
-            self._api_key_input.setEchoMode(QLineEdit.EchoMode.Normal)
+        if self._api_key_input.echoMode() == QLineEdit.Password:
+            self._api_key_input.setEchoMode(QLineEdit.Normal)
             self._toggle_btn.setText("隐藏")
         else:
-            self._api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+            self._api_key_input.setEchoMode(QLineEdit.Password)
             self._toggle_btn.setText("显示")
 
     def _on_fetch_models(self):

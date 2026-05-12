@@ -1,11 +1,11 @@
 [general]
 name=QGIS Agent
-qgisMinimumVersion=4.0
+qgisMinimumVersion=3.28
 description=AI-powered GIS assistant that helps you perform spatial operations through natural language conversation.
 version=1.0.0
 author=xiaozhangpgg
 email=xiaozhangpgg@example.com
-about=QGIS Agent is an AI assistant sidebar plugin for QGIS 4.0. Users describe GIS operations in natural language, and the AI automatically breaks down tasks and calls GIS tools to complete the operations.
+about=QGIS Agent is an AI assistant sidebar plugin for QGIS 3.x. Users describe GIS operations in natural language, and the AI automatically breaks down tasks and calls GIS tools to complete the operations.
 tracker=https://github.com/xiaozhangpgg/QgisAgent/issues
 repository=https://github.com/xiaozhangpgg/QgisAgent
 tags=ai,agent,assistant,natural language,processing
