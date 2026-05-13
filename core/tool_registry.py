@@ -308,6 +308,79 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "topology_check",
+            "description": "检查矢量图层的拓扑错误，输出包含错误要素的新图层。支持多种拓扑规则：面重叠、缝隙、悬挂节点、自相交等。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "要检查的图层名称",
+                    },
+                    "rules": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "拓扑规则列表，支持简化名（如 'no_overlaps'）或 QGIS 原生规则名。不指定则检查所有适用规则",
+                    },
+                    "reference_layer": {
+                        "type": "string",
+                        "description": "跨图层规则的参考图层名称（如 point_in_polygon 需要指定面图层）",
+                    },
+                    "dangle_threshold": {
+                        "type": "number",
+                        "description": "悬挂节点长度阈值，小于此值的悬挂节点被标记为错误，默认 0.001",
+                    },
+                    "gap_tolerance": {
+                        "type": "number",
+                        "description": "缝隙容差，小于此值的缝隙被忽略，默认 0.0001",
+                    },
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "topology_fix",
+            "description": "修复矢量图层的拓扑错误，输出修复后的新图层（原图层不变）。支持修复：几何无效、自相交、重叠、缝隙等错误。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {
+                        "type": "string",
+                        "description": "要修复的图层名称",
+                    },
+                    "error_types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要修复的错误类型列表（如 'invalid_geometry', 'self_intersection'）。不指定则修复所有可修复的错误",
+                    },
+                    "reference_layer": {
+                        "type": "string",
+                        "description": "跨图层规则的参考图层名称",
+                    },
+                    "dangle_threshold": {
+                        "type": "number",
+                        "description": "悬挂节点删除阈值，小于此值的悬挂节点被删除，默认 0.001",
+                    },
+                    "gap_tolerance": {
+                        "type": "number",
+                        "description": "缝隙填充容差，小于此值的缝隙被忽略，默认 0.0001",
+                    },
+                    "overlap_strategy": {
+                        "type": "string",
+                        "enum": ["trim", "merge"],
+                        "description": "重叠处理策略：trim(裁剪) 或 merge(合并)，默认 trim",
+                    },
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
 ]
 
 
