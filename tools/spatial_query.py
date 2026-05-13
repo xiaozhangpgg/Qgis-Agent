@@ -1,20 +1,23 @@
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict
 
-from qgis.core import QgsProject
+from qgis.core import QgsProject, QgsVectorLayer
 
 import processing
+
+from ._utils import find_layer
 
 logger = logging.getLogger("QgisAgent")
 
 VALID_PREDICATES = {
     "intersects": 0,
     "contains": 1,
-    "equals": 6,
-    "touches": 5,
-    "overlaps": 4,
-    "within": 3,
-    "crosses": 2,
+    "disjoint": 2,
+    "equals": 3,
+    "touches": 4,
+    "overlaps": 5,
+    "within": 6,
+    "crosses": 7,
 }
 
 
@@ -22,14 +25,13 @@ def run_spatial_query(
     layer_name: str,
     reference_layer: str,
     predicate: str = "intersects",
-    _confirm_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Extract features from a layer based on spatial relationship with a reference layer.
 
     Args:
         layer_name: Input layer name.
         reference_layer: Reference layer name for spatial comparison.
-        predicate: Spatial predicate: intersects, contains, equals, touches, overlaps, within, crosses.
+        predicate: Spatial predicate: intersects, contains, disjoint, equals, touches, overlaps, within, crosses.
 
     Returns:
         Dict with 'success', 'message', 'results' keys.
@@ -41,13 +43,17 @@ def run_spatial_query(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    layer = _find_layer(layer_name)
+    layer = find_layer(layer_name)
     if layer is None:
         return {"success": False, "error": f"图层 '{layer_name}' 不存在"}
+    if not isinstance(layer, QgsVectorLayer):
+        return {"success": False, "error": f"图层 '{layer_name}' 不是矢量图层，无法执行空间查询"}
 
-    ref = _find_layer(reference_layer)
+    ref = find_layer(reference_layer)
     if ref is None:
         return {"success": False, "error": f"参考图层 '{reference_layer}' 不存在"}
+    if not isinstance(ref, QgsVectorLayer):
+        return {"success": False, "error": f"参考图层 '{reference_layer}' 不是矢量图层，无法执行空间查询"}
 
     predicate = predicate.lower()
     if predicate not in VALID_PREDICATES:
@@ -56,7 +62,9 @@ def run_spatial_query(
             "error": f"不支持的空间谓词 '{predicate}'，可选: {', '.join(VALID_PREDICATES.keys())}",
         }
 
-    feature_count_before = layer.featureCount() if hasattr(layer, "featureCount") else 0
+    feature_count_before = layer.featureCount() if hasattr(layer, "featureCount") else -1
+    if feature_count_before < 0:
+        feature_count_before = "未知"
 
     try:
         params = {
@@ -74,6 +82,8 @@ def run_spatial_query(
             project.addMapLayer(output_layer)
 
             feature_count_after = output_layer.featureCount()
+            if feature_count_after < 0:
+                feature_count_after = "未知"
 
             return {
                 "success": True,
@@ -97,10 +107,3 @@ def run_spatial_query(
         logger.exception(f"Spatial query error for layer '{layer_name}'")
         return {"success": False, "error": f"空间查询失败: {str(e)}"}
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

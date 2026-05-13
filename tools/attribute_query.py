@@ -1,9 +1,11 @@
 import logging
 from typing import Any, Callable, Dict, Optional
 
-from qgis.core import QgsProject
+from qgis.core import QgsExpression, QgsProject, QgsVectorLayer
 
 import processing
+
+from ._utils import find_layer
 
 logger = logging.getLogger("QgisAgent")
 
@@ -29,14 +31,21 @@ def run_attribute_query(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    layer = _find_layer(layer_name)
+    layer = find_layer(layer_name)
     if layer is None:
         return {"success": False, "error": f"图层 '{layer_name}' 不存在"}
+
+    if not isinstance(layer, QgsVectorLayer):
+        return {"success": False, "error": f"图层 '{layer_name}' 不是矢量图层"}
 
     if not expression or not expression.strip():
         return {"success": False, "error": "查询表达式不能为空"}
 
-    feature_count_before = layer.featureCount() if hasattr(layer, "featureCount") else 0
+    expr = QgsExpression(expression)
+    if not expr.isValid():
+        return {"success": False, "error": f"表达式语法错误: {expr.parserErrorString()}"}
+
+    feature_count_before = max(layer.featureCount(), 0)
 
     try:
         params = {
@@ -51,9 +60,10 @@ def run_attribute_query(
             output_layer = result["OUTPUT"]
             safe_expr = expression.replace('"', "'")[:30]
             output_layer.setName(f"{layer_name}_query_{safe_expr}")
-            project.addMapLayer(output_layer)
 
-            feature_count_after = output_layer.featureCount()
+            feature_count_after = max(output_layer.featureCount(), 0)
+
+            project.addMapLayer(output_layer)
 
             return {
                 "success": True,
@@ -76,10 +86,3 @@ def run_attribute_query(
         logger.exception(f"Attribute query error for layer '{layer_name}'")
         return {"success": False, "error": f"属性查询失败: {str(e)}"}
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

@@ -1,9 +1,11 @@
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 from qgis.core import QgsProject
 
 import processing
+
+from ._utils import find_layer, resolve_output_name
 
 logger = logging.getLogger("QgisAgent")
 
@@ -17,6 +19,16 @@ _FIELD_TYPE_MAP = {
     "boolean": 6,
 }
 
+_TYPE_DEFAULTS = {
+    "float": {"length": 10, "precision": 3},
+    "integer": {"length": 10, "precision": 0},
+    "string": {"length": 50, "precision": 0},
+    "date": {"length": 10, "precision": 0},
+    "time": {"length": 8, "precision": 0},
+    "datetime": {"length": 19, "precision": 0},
+    "boolean": {"length": 1, "precision": 0},
+}
+
 
 def run_field_calculator(
     layer_name: str,
@@ -26,7 +38,6 @@ def run_field_calculator(
     field_length: Optional[int] = None,
     field_precision: Optional[int] = None,
     output_name: Optional[str] = None,
-    _confirm_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Calculate or update a field using a QGIS expression.
 
@@ -49,7 +60,7 @@ def run_field_calculator(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    layer = _find_layer(layer_name)
+    layer = find_layer(layer_name)
     if layer is None:
         return {"success": False, "error": f"图层 '{layer_name}' 不存在"}
 
@@ -61,8 +72,9 @@ def run_field_calculator(
         valid = ", ".join(_FIELD_TYPE_MAP.keys())
         return {"success": False, "error": f"不支持的字段类型 '{resolved_type}'，可选: {valid}"}
 
-    length = field_length if field_length is not None else 10
-    precision = field_precision if field_precision is not None else 3
+    defaults = _TYPE_DEFAULTS.get(resolved_type, _TYPE_DEFAULTS["float"])
+    length = field_length if field_length is not None else defaults["length"]
+    precision = field_precision if field_precision is not None else defaults["precision"]
 
     try:
         params = {
@@ -79,7 +91,9 @@ def run_field_calculator(
 
         if result and "OUTPUT" in result:
             output_layer = result["OUTPUT"]
-            out_name = output_name or f"{layer_name}_calc_{field_name}"
+            out_name = resolve_output_name(
+                project, output_name or f"{layer_name}_calc_{field_name}"
+            )
             output_layer.setName(out_name)
             project.addMapLayer(output_layer)
 
@@ -101,10 +115,3 @@ def run_field_calculator(
         logger.exception(f"Field calculator error for layer '{layer_name}'")
         return {"success": False, "error": f"字段计算失败: {str(e)}"}
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

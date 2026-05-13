@@ -5,6 +5,8 @@ from qgis.core import QgsProject
 
 import processing
 
+from ._utils import find_layer
+
 logger = logging.getLogger("QgisAgent")
 
 
@@ -31,7 +33,7 @@ def run_statistics(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    layer = _find_layer(layer_name)
+    layer = find_layer(layer_name)
     if layer is None:
         return {"success": False, "error": f"图层 '{layer_name}' 不存在"}
 
@@ -113,10 +115,3 @@ def run_statistics(
         logger.exception(f"Statistics error for layer '{layer_name}'")
         return {"success": False, "error": f"统计汇总失败: {str(e)}"}
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

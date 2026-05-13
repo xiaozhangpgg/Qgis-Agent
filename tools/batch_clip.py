@@ -1,11 +1,15 @@
 import logging
-from typing import Any, Callable, Dict, List, Optional
+import os
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from qgis.core import (
     QgsProject,
+    QgsWkbTypes,
 )
 
 import processing
+
+from ._utils import find_layer_with_warnings, resolve_input
 
 logger = logging.getLogger("QgisAgent")
 
@@ -31,30 +35,58 @@ def run_batch_clip(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    boundary = _find_layer(clip_layer)
+    boundary, boundary_warnings = find_layer_with_warnings(clip_layer)
     if boundary is None:
         return {"success": False, "error": f"裁剪边界图层 '{clip_layer}' 不存在"}
+
+    if not boundary.isValid():
+        return {"success": False, "error": f"裁剪边界图层 '{clip_layer}' 无效，数据源可能已损坏"}
+
+    if boundary.geometryType() != QgsWkbTypes.PolygonGeometry:
+        return {"success": False, "error": f"裁剪边界图层 '{clip_layer}' 必须是面图层"}
+
+    if boundary.featureCount() == 0:
+        return {"success": False, "error": f"裁剪边界图层 '{clip_layer}' 无要素，无法执行裁剪"}
+
+    boundary_crs = boundary.crs()
 
     results = []
     errors = []
     skipped = []
+    warnings = list(boundary_warnings)
 
     for layer_name in layer_names:
-        layer = _find_layer(layer_name)
+        layer, layer_warnings = find_layer_with_warnings(layer_name)
+        warnings.extend(layer_warnings)
+
         if layer is None:
             skipped.append(f"{layer_name} (图层不存在)")
+            continue
+
+        if not layer.isValid():
+            skipped.append(f"{layer_name} (图层无效，数据源可能已损坏)")
             continue
 
         if layer_name == clip_layer:
             skipped.append(f"{layer_name} (不能裁剪自身)")
             continue
 
-        feature_count_before = layer.featureCount() if hasattr(layer, 'featureCount') else 0
+        if layer.crs() != boundary_crs:
+            skipped.append(
+                f"{layer_name} (CRS 不一致: {layer.crs().authid()} vs {boundary_crs.authid()})"
+            )
+            continue
+
+        raw_count = layer.featureCount()
+        feature_count_before = raw_count if raw_count >= 0 else None
 
         try:
+            input_value = resolve_input(layer)
+            overlay_value = resolve_input(boundary)
+
             params = {
-                "INPUT": layer,
-                "OVERLAY": boundary,
+                "INPUT": input_value,
+                "OVERLAY": overlay_value,
                 "OUTPUT": "memory:",
             }
 
@@ -62,10 +94,13 @@ def run_batch_clip(
 
             if result and "OUTPUT" in result:
                 output_layer = result["OUTPUT"]
-                output_layer.setName(f"{layer_name}_clipped")
+                output_name = f"{layer_name}_clipped"
+                output_layer.setName(output_name)
                 project.addMapLayer(output_layer)
 
-                feature_count_after = output_layer.featureCount()
+                output_layer.updateExtents()
+                raw_after = output_layer.featureCount()
+                feature_count_after = raw_after if raw_after >= 0 else None
                 results.append({
                     "input": layer_name,
                     "output": output_layer.name(),
@@ -94,12 +129,7 @@ def run_batch_clip(
         "results": results,
         "errors": errors,
         "skipped": skipped,
+        "warnings": warnings,
     }
 
 
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

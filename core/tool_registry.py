@@ -27,7 +27,7 @@ TOOL_DEFINITIONS = [
                     },
                     "target_crs": {
                         "type": "string",
-                        "description": "目标 CRS，如 'EPSG:4490'、'EPSG:3857'",
+                        "description": "目标 CRS 的 EPSG 代码。地理坐标系: CGCS2000=EPSG:4490, WGS84=EPSG:4326, 北京54=EPSG:4214, 西安80=EPSG:4610。高斯-克吕格投影每带含带号(东移=带号×1000000+500000)和无带号/CM(东移=500000)两种变体，EPSG代码不同！CGCS2000 3度带: 含带号EPSG=4488+带号(如第39带=4527), 无带号EPSG=4509+带号(如第39带=4548); CGCS2000 6度带: 含带号EPSG=4478+带号(如第20带=4498), 无带号EPSG=4489+带号(如第20带=4509)。北京54 3度带: 含带号EPSG=2376+带号(如第39带=2415), 无带号EPSG=2397+带号(如第39带=2436); 北京54 6度带: 含带号EPSG=21400+带号(如第20带=21420), 无带号EPSG=21440+带号(如第20带=21460)。西安80 3度带: 含带号EPSG=2324+带号(如第39带=2363), 无带号EPSG=2345+带号(如第39带=2384); 西安80 6度带: 含带号EPSG=2314+带号(如第20带=2334), 无带号EPSG=2325+带号(如第20带=2345)。WGS84/UTM北半球: EPSG=32600+带号(如50N=32650)。3度带带号范围25-45(中央经线75°E-135°E)，6度带带号范围13-23(中央经线75°E-135°E)，UTM带号范围43-53。选择规则：用户说'第N带'通常指含带号(Y坐标前有带号如39500000)，说'中央经线'或'CM'通常指无带号(Y坐标为500000)。务必根据用户描述选择对应变体的EPSG代码，两种变体不可混用。",
                     },
                     "output_dir": {
                         "type": "string",
@@ -64,7 +64,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "buffer",
-            "description": "对图层中的要素创建指定距离的缓冲区。",
+            "description": "对图层中的要素创建指定距离的缓冲区。距离单位为米，若图层为地理坐标系（如 EPSG:4326）会自动重投影到投影坐标系后执行缓冲区分析，结果再重投影回原始坐标系。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -74,7 +74,7 @@ TOOL_DEFINITIONS = [
                     },
                     "distance": {
                         "type": "number",
-                        "description": "缓冲区距离（单位与图层 CRS 一致）",
+                        "description": "缓冲区距离，单位为米",
                     },
                     "segments": {
                         "type": "integer",
@@ -154,7 +154,7 @@ TOOL_DEFINITIONS = [
                     },
                     "predicate": {
                         "type": "string",
-                        "enum": ["intersects", "contains", "equals", "touches", "overlaps", "within", "crosses"],
+                        "enum": ["intersects", "contains", "disjoint", "equals", "touches", "overlaps", "within", "crosses"],
                         "description": "空间关系谓词",
                     },
                 },
@@ -182,6 +182,10 @@ TOOL_DEFINITIONS = [
                     "output_name": {
                         "type": "string",
                         "description": "可选，输出图层名称",
+                    },
+                    "cellsize": {
+                        "type": "number",
+                        "description": "可选，输出像元大小，默认使用第一个输入栅格的像元大小",
                     },
                 },
                 "required": ["expression", "input_rasters"],

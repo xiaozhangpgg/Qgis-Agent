@@ -1,31 +1,21 @@
 import logging
 import os
+import tempfile
 from typing import Any, Callable, Dict, Optional
 
-from qgis.core import QgsProject
+from qgis.core import QgsProject, QgsVectorLayer
 
 import processing
 
+from ._utils import find_layer, FORMAT_EXTENSIONS, DRIVER_MAP
+
 logger = logging.getLogger("QgisAgent")
 
-FORMAT_EXTENSIONS = {
-    "geojson": "geojson",
-    "gpkg": "gpkg",
-    "kml": "kml",
-    "csv": "csv",
-    "shp": "shp",
-    "gml": "gml",
-    "gpkg": "gpkg",
-}
 
-DRIVER_MAP = {
-    "geojson": "GeoJSON",
-    "gpkg": "GPKG",
-    "kml": "KML",
-    "csv": "CSV",
-    "shp": "ESRI Shapefile",
-    "gml": "GML",
-}
+def _sanitize_filename(name: str) -> str:
+    for ch in r'\/:*?"<>|':
+        name = name.replace(ch, "_")
+    return name
 
 
 def run_format_convert(
@@ -51,7 +41,7 @@ def run_format_convert(
     except Exception:
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
-    layer = _find_layer(layer_name)
+    layer = find_layer(layer_name)
     if layer is None:
         return {"success": False, "error": f"图层 '{layer_name}' 不存在"}
 
@@ -64,12 +54,13 @@ def run_format_convert(
 
     ext = FORMAT_EXTENSIONS[fmt]
 
+    safe_name = _sanitize_filename(layer_name)
+
     try:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"{layer_name}.{ext}")
+            output_path = os.path.join(output_dir, f"{safe_name}.{ext}")
 
-            # Check overwrite
             if os.path.exists(output_path) and _confirm_callback:
                 result = _confirm_callback(f"文件 '{output_path}' 已存在，是否覆盖？")
                 if not result.confirmed:
@@ -80,8 +71,7 @@ def run_format_convert(
                 "OUTPUT": output_path,
             }
 
-            alg = "native:savefeatures"
-            result = processing.run(alg, params)
+            result = processing.run("native:savefeatures", params)
 
             if result and "OUTPUT" in result:
                 return {
@@ -96,16 +86,21 @@ def run_format_convert(
             else:
                 return {"success": False, "error": "Processing 返回空结果"}
         else:
+            tmp_dir = tempfile.mkdtemp()
+            tmp_path = os.path.join(tmp_dir, f"{safe_name}.{ext}")
+
             params = {
                 "INPUT": layer,
-                "OUTPUT": "memory:",
+                "OUTPUT": tmp_path,
             }
 
             result = processing.run("native:savefeatures", params)
 
             if result and "OUTPUT" in result:
-                output_layer = result["OUTPUT"]
-                output_layer.setName(f"{layer_name}_{ext}")
+                output_layer = QgsVectorLayer(tmp_path, f"{layer_name}_{ext}", "ogr")
+                if not output_layer.isValid():
+                    return {"success": False, "error": f"转换后的图层无效，无法加载"}
+
                 project.addMapLayer(output_layer)
 
                 feature_count = output_layer.featureCount()
@@ -129,10 +124,3 @@ def run_format_convert(
         logger.exception(f"Format convert error for layer '{layer_name}'")
         return {"success": False, "error": f"格式转换失败: {str(e)}"}
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

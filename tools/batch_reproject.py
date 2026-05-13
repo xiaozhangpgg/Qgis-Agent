@@ -8,6 +8,8 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
 )
 
+from ._utils import find_layer, resolve_input
+
 logger = logging.getLogger("QgisAgent")
 
 
@@ -33,6 +35,8 @@ def run_batch_reproject(
     if not crs.isValid():
         return {"success": False, "error": f"无效的 CRS: {target_crs}"}
 
+    logger.info(f"Target CRS resolved: {crs.authid()} ({crs.description()})")
+
     if output_dir and not os.path.isdir(output_dir):
         try:
             os.makedirs(output_dir, exist_ok=True)
@@ -44,7 +48,7 @@ def run_batch_reproject(
     skipped = []
 
     for layer_name in layer_names:
-        layer = _find_layer(layer_name)
+        layer = find_layer(layer_name)
         if layer is None:
             skipped.append(f"{layer_name} (图层不存在)")
             continue
@@ -66,10 +70,11 @@ def run_batch_reproject(
             skipped.append(f"{layer_name} (已是目标 CRS)")
             continue
 
-        feature_count_before = layer.featureCount() if hasattr(layer, 'featureCount') else 0
+        raw_count = layer.featureCount()
+        feature_count_before = raw_count if raw_count >= 0 else None
 
         try:
-            input_value = _resolve_input(layer)
+            input_value = resolve_input(layer)
 
             params = {
                 "INPUT": input_value,
@@ -88,28 +93,51 @@ def run_batch_reproject(
                         if not result.confirmed:
                             skipped.append(f"{layer_name} (用户取消覆盖)")
                             continue
-                    os.remove(out_path)
+                    base = os.path.splitext(out_path)[0]
+                    for suffix in (".shp", ".shx", ".dbf", ".prj", ".qpj", ".cpg", ".sbn", ".sbx"):
+                        companion = base + suffix
+                        if os.path.exists(companion):
+                            os.remove(companion)
                 params["OUTPUT"] = out_path
 
             import processing
             result = processing.run("native:reprojectlayer", params)
 
+            crs_suffix = target_crs.split(':')[1] if ':' in target_crs else target_crs
+
             if result and "OUTPUT" in result:
                 output_layer = result["OUTPUT"]
                 if isinstance(output_layer, str):
-                    out_name = f"{layer_name}_{target_crs.split(':')[1]}"
+                    out_name = f"{layer_name}_{crs_suffix}"
                     output_layer = QgsVectorLayer(output_layer, out_name, "ogr")
                     project.addMapLayer(output_layer)
                 else:
-                    output_layer.setName(f"{layer_name}_{target_crs.split(':')[1]}")
+                    output_layer.setName(f"{layer_name}_{crs_suffix}")
                     project.addMapLayer(output_layer)
 
-                feature_count_after = output_layer.featureCount()
+                raw_after = output_layer.featureCount()
+                feature_count_after = raw_after if raw_after >= 0 else None
+
+                output_crs = output_layer.crs()
+                crs_mismatch = False
+                if output_crs.isValid() and crs.isValid():
+                    if output_crs.authid() != crs.authid():
+                        crs_mismatch = True
+                        logger.warning(
+                            f"CRS mismatch for '{layer_name}': "
+                            f"expected {crs.authid()} ({crs.description()}), "
+                            f"got {output_crs.authid()} ({output_crs.description()})"
+                        )
+
                 results.append({
                     "input": layer_name,
                     "output": output_layer.name(),
                     "features_before": feature_count_before,
                     "features_after": feature_count_after,
+                    "source_crs": _crs_str(source_crs),
+                    "target_crs": _crs_str(crs),
+                    "output_crs": _crs_str(output_crs),
+                    "crs_mismatch": crs_mismatch,
                 })
             else:
                 errors.append(f"{layer_name}: Processing 返回空结果")
@@ -121,7 +149,14 @@ def run_batch_reproject(
     success = len(results) > 0
     msg_parts = []
     if results:
-        msg_parts.append(f"成功转换 {len(results)} 个图层到 {target_crs}")
+        msg_parts.append(f"成功转换 {len(results)} 个图层到 {crs.authid()} ({crs.description()})")
+    crs_warnings = [r for r in results if r.get("crs_mismatch")]
+    if crs_warnings:
+        warn_details = "; ".join(
+            f"{r['input']}: 期望 {r['target_crs']}, 实际 {r['output_crs']}"
+            for r in crs_warnings
+        )
+        msg_parts.append(f"⚠ CRS 不匹配: {warn_details}")
     if skipped:
         msg_parts.append(f"跳过 {len(skipped)} 个: {', '.join(skipped)}")
     if errors:
@@ -130,33 +165,14 @@ def run_batch_reproject(
     return {
         "success": success,
         "message": "，".join(msg_parts),
+        "target_crs_info": _crs_str(crs),
         "results": results,
         "errors": errors,
         "skipped": skipped,
     }
 
 
-def _resolve_input(layer):
-    """Resolve the best input value for processing.run().
-
-    Prefer layer source path for file-based layers (more robust across
-    threads), fall back to the layer object for memory/temporary layers.
-    """
-    source = layer.source()
-    if source and not source.startswith("memory:"):
-        file_path = source.split("|")[0]
-        for prefix in ("ogr:", "gdal:"):
-            if file_path.startswith(prefix):
-                file_path = file_path[len(prefix):]
-                break
-        if os.path.exists(file_path):
-            return source
-    return layer
-
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None
+def _crs_str(crs: QgsCoordinateReferenceSystem) -> str:
+    if not crs.isValid():
+        return "未知"
+    return f"{crs.authid()} ({crs.description()})"

@@ -1,21 +1,17 @@
 import logging
 import os
+import re
 from typing import Any, Callable, Dict, List, Optional
 
-from qgis.core import QgsProject
+from qgis.core import QgsProject, QgsVectorLayer
 
 import processing
 
+from ._utils import find_layer_case_insensitive, FORMAT_EXTENSIONS
+
 logger = logging.getLogger("QgisAgent")
 
-FORMAT_EXTENSIONS = {
-    "geojson": "geojson",
-    "gpkg": "gpkg",
-    "kml": "kml",
-    "csv": "csv",
-    "shp": "shp",
-    "gml": "gml",
-}
+_ILLEGAL_FILENAME_RE = re.compile(r'[\\/:*?"<>|]')
 
 
 def run_batch_export(
@@ -36,9 +32,7 @@ def run_batch_export(
     """
     project = QgsProject.instance()
 
-    try:
-        _ = processing.run
-    except Exception:
+    if not callable(getattr(processing, "run", None)):
         return {"success": False, "error": "QGIS Processing 框架不可用"}
 
     fmt = output_format.lower().strip().lstrip(".")
@@ -59,15 +53,20 @@ def run_batch_export(
     skipped = []
 
     for layer_name in layer_names:
-        layer = _find_layer(layer_name)
+        layer = find_layer_case_insensitive(layer_name)
         if layer is None:
             skipped.append(f"{layer_name} (图层不存在)")
+            continue
+
+        if not isinstance(layer, QgsVectorLayer):
+            skipped.append(f"{layer_name} (非矢量图层，无法导出)")
             continue
 
         feature_count = layer.featureCount() if hasattr(layer, "featureCount") else 0
 
         try:
-            output_path = os.path.join(output_dir, f"{layer_name}.{ext}")
+            safe_name = _ILLEGAL_FILENAME_RE.sub("_", layer_name)
+            output_path = os.path.join(output_dir, f"{safe_name}.{ext}")
 
             # Check overwrite
             if os.path.exists(output_path) and _confirm_callback:
@@ -97,7 +96,16 @@ def run_batch_export(
             logger.exception(f"Export error for layer '{layer_name}'")
             errors.append(f"{layer_name}: {str(e)}")
 
-    success = len(results) > 0
+    total = len(layer_names)
+    if len(results) == total:
+        success = True
+        status = "all_success"
+    elif len(results) > 0:
+        success = True
+        status = "partial_success"
+    else:
+        success = False
+        status = "all_failed"
     msg_parts = []
     if results:
         msg_parts.append(f"成功导出 {len(results)} 个图层到 {output_dir}")
@@ -108,16 +116,10 @@ def run_batch_export(
 
     return {
         "success": success,
+        "status": status,
         "message": "，".join(msg_parts),
         "results": results,
         "errors": errors,
         "skipped": skipped,
     }
 
-
-def _find_layer(name: str):
-    project = QgsProject.instance()
-    for layer in project.mapLayers().values():
-        if layer.name() == name:
-            return layer
-    return None

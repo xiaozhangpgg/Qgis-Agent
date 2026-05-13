@@ -101,20 +101,28 @@ class ContextManager:
                     3: "UnknownGeometry",
                     4: "NoGeometry",
                 }
+                layer_crs = layer.crs()
+                crs_info = layer_crs.authid()
+                if layer_crs.isValid() and layer_crs.description():
+                    crs_info = f"{layer_crs.authid()} ({layer_crs.description()})"
                 return {
                     "name": name,
                     "type": "vector",
-                    "crs": layer.crs().authid(),
+                    "crs": crs_info,
                     "geometry_type": geom_types.get(geom_type, "Unknown"),
                     "feature_count": layer.featureCount(),
                     "fields": fields,
                     "source": source,
                 }
             elif isinstance(layer, QgsRasterLayer):
+                layer_crs = layer.crs()
+                crs_info = layer_crs.authid()
+                if layer_crs.isValid() and layer_crs.description():
+                    crs_info = f"{layer_crs.authid()} ({layer_crs.description()})"
                 return {
                     "name": name,
                     "type": "raster",
-                    "crs": layer.crs().authid(),
+                    "crs": crs_info,
                     "band_count": layer.bandCount(),
                     "source": source,
                 }
