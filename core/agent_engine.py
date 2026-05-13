@@ -20,6 +20,8 @@ from ..tools.format_convert import run_format_convert
 from ..tools.batch_export import run_batch_export
 from ..tools.statistics import run_statistics
 from ..tools.field_calculator import run_field_calculator
+from ..tools.topology_check import run_topology_check
+from ..tools.topology_fix import run_topology_fix
 
 logger = logging.getLogger("QgisAgent")
 
@@ -262,6 +264,8 @@ class AgentEngine(QObject):
         self._registry.register("batch_export", run_batch_export)
         self._registry.register("statistics", run_statistics)
         self._registry.register("field_calculator", run_field_calculator)
+        self._registry.register("topology_check", run_topology_check)
+        self._registry.register("topology_fix", run_topology_fix)
 
     def run(self, user_text: str, attached_files: list = None):
         if not self._llm.is_configured:
