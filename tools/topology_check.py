@@ -104,7 +104,7 @@ def run_topology_check(
     try:
         # 使用 QGIS checkvalidity 算法检查几何有效性
         params = {
-            "INPUT": layer,
+            "INPUT_LAYER": layer,
             "VALID_OUTPUT": "memory:",
             "INVALID_OUTPUT": "memory:",
             "ERROR_OUTPUT": "memory:",
