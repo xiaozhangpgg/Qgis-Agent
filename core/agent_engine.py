@@ -20,8 +20,7 @@ from ..tools.format_convert import run_format_convert
 from ..tools.batch_export import run_batch_export
 from ..tools.statistics import run_statistics
 from ..tools.field_calculator import run_field_calculator
-from ..tools.topology_check import run_topology_check
-from ..tools.topology_fix import run_topology_fix
+
 
 logger = logging.getLogger("QgisAgent")
 
@@ -68,6 +67,8 @@ class _WorkerThread(QThread):
     finished = pyqtSignal()
     confirm_overwrite = pyqtSignal(str)  # message → main thread
     confirm_response = pyqtSignal(bool, bool)  # confirmed, apply_to_all → worker
+    ask_directory = pyqtSignal(str)  # message → main thread
+    directory_response = pyqtSignal(str)  # directory path → worker
 
     def __init__(self, llm: LLMClient, registry: ToolRegistry,
                  context_mgr: ContextManager, file_source_mgr: FileSourceManager,
@@ -81,6 +82,8 @@ class _WorkerThread(QThread):
         self._abort = False
         self._confirm_loop = None
         self._confirm_result = ConfirmResult(confirmed=False)
+        self._dir_loop = None
+        self._dir_result = ""
 
     def abort(self):
         self._abort = True
@@ -101,6 +104,22 @@ class _WorkerThread(QThread):
         self._confirm_result = ConfirmResult(confirmed=confirmed, apply_to_all=apply_to_all)
         if self._confirm_loop:
             self._confirm_loop.quit()
+
+    def _ask_user_directory(self, message: str) -> str:
+        """Ask user to select a directory. Called from worker thread, blocks until response."""
+        from qgis.PyQt.QtCore import QEventLoop
+        self._dir_result = ""
+        self._dir_loop = QEventLoop()
+        self.ask_directory.emit(message)
+        self._dir_loop.exec_()
+        self._dir_loop = None
+        return self._dir_result
+
+    def _on_directory_response(self, directory: str):
+        """Receive directory selection response from main thread."""
+        self._dir_result = directory
+        if self._dir_loop:
+            self._dir_loop.quit()
 
     def run(self):
         try:
@@ -264,8 +283,7 @@ class AgentEngine(QObject):
         self._registry.register("batch_export", run_batch_export)
         self._registry.register("statistics", run_statistics)
         self._registry.register("field_calculator", run_field_calculator)
-        self._registry.register("topology_check", run_topology_check)
-        self._registry.register("topology_fix", run_topology_fix)
+
 
     def run(self, user_text: str, attached_files: list = None):
         if not self._llm.is_configured:
@@ -311,7 +329,10 @@ class AgentEngine(QObject):
         self._worker.finished.connect(self._on_worker_finished)
         self._worker.confirm_overwrite.connect(self._on_confirm_overwrite)
         self._worker.confirm_response.connect(self._worker._on_confirm_response)
+        self._worker.ask_directory.connect(self._on_ask_directory)
+        self._worker.directory_response.connect(self._worker._on_directory_response)
         self._registry.set_confirm_callback(self._worker._ask_user_confirm)
+        self._registry.set_ask_dir_callback(self._worker._ask_user_directory)
         self._worker.start()
 
     def abort(self):
@@ -341,6 +362,13 @@ class AgentEngine(QObject):
         reply = box.exec_()
         if self._worker:
             self._worker.confirm_response.emit(reply == QMessageBox.Yes, False)
+
+    def _on_ask_directory(self, message: str):
+        """Show directory selection dialog on main thread. Sends selected path back to worker."""
+        from qgis.PyQt.QtWidgets import QFileDialog
+        directory = QFileDialog.getExistingDirectory(None, message, "")
+        if self._worker:
+            self._worker.directory_response.emit(directory)
 
     def clear_history(self):
         self._messages.clear()

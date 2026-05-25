@@ -66,13 +66,9 @@ QgisAgent/
 │   ├── batch_export.py         # 批量导出 (P1)
 │   └── statistics.py           # 统计汇总 (P1)
 │
-├── i18n/                       # 翻译文件 (P1)
-│   ├── zh_CN.ts
-│   └── en_US.ts
-└── tests/                      # 测试
-    ├── test_llm_client.py
-    ├── test_tools.py
-    └── test_agent_engine.py
+└── i18n/                       # 翻译文件 (P1)
+    ├── zh_CN.ts
+    └── en_US.ts
 ```
 
 **包职责划分：**
@@ -480,7 +476,7 @@ context_manager.collect_context(source_decision)
 |------|------|------|
 | 16 | `core/agent_engine.py` | 对话循环、tool_calls 解析、工具执行、结果反馈、滑动窗口 |
 | 17 | — | System Prompt 构建 + 上下文注入（含数据来源说明） |
-| 18 | `core/agent_engine.py` + `core/tool_registry.py` + `tools/batch_reproject.py` | 用户确认机制（跨线程信号 + QEventLoop 阻塞，文件覆盖确认对话框 + 双源冲突追问对话框） |
+| 18 | `core/agent_engine.py` + `core/tool_registry.py` + `tools/batch_reproject.py` | 用户交互机制（跨线程信号 + QEventLoop 阻塞，文件覆盖确认对话框 + 目录选择对话框 + 双源冲突追问对话框） |
 | 19 | — | 打断机制（abort SSE + 中止工具） |
 | 20 | — | 双源决策逻辑（`_resolve_layer_source()`：NO_LAYERS / ASK_USER / USE_PROJECT / USE_PLUGIN_FILES） |
 | 21 | `core/agent_engine.py` + `ui/tool_card.py` | 跨线程信号安全：发射 dict 浅拷贝，UI 层增加防御性序列化 |
@@ -551,9 +547,6 @@ __init__.py
 - 优先使用中文回复（如果用户使用中文）
 - 图层名以 "[plugin] " 开头的，是用户通过插件导入的文件，已自动加载为临时图层
 - 临时图层在对话结束后可能被清理，处理完成后提醒用户是否需要持久保存
-- 拓扑检查前，先确认图层类型（点/线/面），选择适用的规则
-- 拓扑修复会创建新图层，原图层保持不变
-- 跨图层规则（如点在面内）需要指定参考图层
 ```
 
 ---

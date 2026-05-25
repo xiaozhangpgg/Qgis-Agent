@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from typing import Any, Callable, Dict, List, Optional
 
 from qgis.core import (
@@ -8,23 +9,42 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
 )
 
-from ._utils import find_layer, resolve_input
+from ._utils import find_layer, resolve_input, FORMAT_EXTENSIONS
 
 logger = logging.getLogger("QgisAgent")
+
+_ILLEGAL_FILENAME_RE = re.compile(r'[\\/:*?"<>|]')
+
+_SHP_COMPANION_SUFFIXES = (".shp", ".shx", ".dbf", ".prj", ".qpj", ".cpg", ".sbn", ".sbx")
+
+
+def _remove_companion_files(path: str, fmt: str):
+    if fmt != "shp":
+        if os.path.exists(path):
+            os.remove(path)
+        return
+    base = os.path.splitext(path)[0]
+    for suffix in _SHP_COMPANION_SUFFIXES:
+        companion = base + suffix
+        if os.path.exists(companion):
+            os.remove(companion)
 
 
 def run_batch_reproject(
     layer_names: List[str],
     target_crs: str,
-    output_dir: Optional[str] = None,
+    output_format: str = "shp",
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
-    """Batch reproject multiple layers to a target CRS.
+    """Batch reproject multiple layers to a target CRS and export to files.
 
     Args:
         layer_names: List of layer names to reproject.
         target_crs: Target CRS string, e.g. 'EPSG:4490'.
-        output_dir: Optional output directory. If None, layers are added to project.
+        output_format: Output format: shp, gpkg, geojson, kml, csv. Default shp.
+        _confirm_callback: Callback for overwrite confirmation.
+        _ask_dir_callback: Callback for directory selection.
 
     Returns:
         Dict with 'success', 'message', 'results' keys.
@@ -37,11 +57,25 @@ def run_batch_reproject(
 
     logger.info(f"Target CRS resolved: {crs.authid()} ({crs.description()})")
 
-    if output_dir and not os.path.isdir(output_dir):
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-        except OSError as e:
-            return {"success": False, "error": f"无法创建输出目录: {e}"}
+    fmt = output_format.lower().strip().lstrip(".")
+    if fmt not in FORMAT_EXTENSIONS:
+        return {
+            "success": False,
+            "error": f"不支持的输出格式 '{output_format}'，可选: {', '.join(FORMAT_EXTENSIONS.keys())}",
+        }
+    ext = FORMAT_EXTENSIONS[fmt]
+
+    if not _ask_dir_callback:
+        return {"success": False, "error": "目录选择回调未设置，无法确定保存位置"}
+    
+    output_dir = _ask_dir_callback("请选择坐标转换结果的保存目录")
+    if not output_dir:
+        return {"success": False, "error": "用户取消了目录选择"}
+
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except OSError as e:
+        return {"success": False, "error": f"无法创建输出目录: {e}"}
 
     results = []
     errors = []
@@ -75,45 +109,36 @@ def run_batch_reproject(
 
         try:
             input_value = resolve_input(layer)
+            crs_suffix = target_crs.split(':')[1] if ':' in target_crs else target_crs
+
+            safe_name = _ILLEGAL_FILENAME_RE.sub("_", layer_name)
+            out_path = os.path.join(output_dir, f"{safe_name}_{crs_suffix}.{ext}")
+
+            if os.path.exists(out_path):
+                if _confirm_callback:
+                    result = _confirm_callback(
+                        f"文件已存在，是否覆盖？\n\n{out_path}"
+                    )
+                    if not result.confirmed:
+                        skipped.append(f"{layer_name} (用户取消覆盖)")
+                        continue
+                _remove_companion_files(out_path, fmt)
 
             params = {
                 "INPUT": input_value,
                 "TARGET_CRS": crs,
-                "OUTPUT": "memory:",
+                "OUTPUT": out_path,
             }
-
-            if output_dir:
-                ext = ".shp"
-                out_path = os.path.join(output_dir, f"{layer_name}_reprojected{ext}")
-                if os.path.exists(out_path):
-                    if _confirm_callback:
-                        result = _confirm_callback(
-                            f"文件已存在，是否覆盖？\n\n{out_path}"
-                        )
-                        if not result.confirmed:
-                            skipped.append(f"{layer_name} (用户取消覆盖)")
-                            continue
-                    base = os.path.splitext(out_path)[0]
-                    for suffix in (".shp", ".shx", ".dbf", ".prj", ".qpj", ".cpg", ".sbn", ".sbx"):
-                        companion = base + suffix
-                        if os.path.exists(companion):
-                            os.remove(companion)
-                params["OUTPUT"] = out_path
 
             import processing
             result = processing.run("native:reprojectlayer", params)
 
-            crs_suffix = target_crs.split(':')[1] if ':' in target_crs else target_crs
-
             if result and "OUTPUT" in result:
-                output_layer = result["OUTPUT"]
-                if isinstance(output_layer, str):
-                    out_name = f"{layer_name}_{crs_suffix}"
-                    output_layer = QgsVectorLayer(output_layer, out_name, "ogr")
-                    project.addMapLayer(output_layer)
-                else:
-                    output_layer.setName(f"{layer_name}_{crs_suffix}")
-                    project.addMapLayer(output_layer)
+                out_path_from_proc = result["OUTPUT"]
+                # 添加图层到项目
+                out_name = f"{layer_name}_{crs_suffix}"
+                output_layer = QgsVectorLayer(out_path_from_proc, out_name, "ogr")
+                project.addMapLayer(output_layer)
 
                 raw_after = output_layer.featureCount()
                 feature_count_after = raw_after if raw_after >= 0 else None
@@ -129,7 +154,7 @@ def run_batch_reproject(
                             f"got {output_crs.authid()} ({output_crs.description()})"
                         )
 
-                results.append({
+                result_entry = {
                     "input": layer_name,
                     "output": output_layer.name(),
                     "features_before": feature_count_before,
@@ -138,7 +163,10 @@ def run_batch_reproject(
                     "target_crs": _crs_str(crs),
                     "output_crs": _crs_str(output_crs),
                     "crs_mismatch": crs_mismatch,
-                })
+                    "output_path": out_path_from_proc,
+                    "output_format": fmt,
+                }
+                results.append(result_entry)
             else:
                 errors.append(f"{layer_name}: Processing 返回空结果")
 
@@ -157,6 +185,8 @@ def run_batch_reproject(
             for r in crs_warnings
         )
         msg_parts.append(f"⚠ CRS 不匹配: {warn_details}")
+    if results:
+        msg_parts.append(f"文件已保存到: {output_dir}")
     if skipped:
         msg_parts.append(f"跳过 {len(skipped)} 个: {', '.join(skipped)}")
     if errors:
@@ -166,6 +196,7 @@ def run_batch_reproject(
         "success": success,
         "message": "，".join(msg_parts),
         "target_crs_info": _crs_str(crs),
+        "output_dir": output_dir,
         "results": results,
         "errors": errors,
         "skipped": skipped,

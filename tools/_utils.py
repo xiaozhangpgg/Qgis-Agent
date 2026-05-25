@@ -57,6 +57,8 @@ FORMAT_EXTENSIONS = {
     "csv": "csv",
     "shp": "shp",
     "gml": "gml",
+    "dxf": "dxf",
+    "xlsx": "xlsx",
 }
 
 DRIVER_MAP = {
@@ -66,6 +68,8 @@ DRIVER_MAP = {
     "csv": "CSV",
     "shp": "ESRI Shapefile",
     "gml": "GML",
+    "dxf": "DXF",
+    "xlsx": "XLSX",
 }
 
 
@@ -77,3 +81,20 @@ def resolve_output_name(project: QgsProject, base_name: str) -> str:
     while f"{base_name}_{idx}" in existing:
         idx += 1
     return f"{base_name}_{idx}"
+
+
+RASTER_FORMAT_EXTENSIONS = {
+    "geotiff": "tif",
+    "tiff": "tif",
+    "img": "img",
+}
+
+RASTER_DRIVER_MAP = {
+    "geotiff": "GTiff",
+    "tiff": "GTiff",
+    "img": "HFA",
+}
+
+
+def is_raster_format(fmt: str) -> bool:
+    return fmt.lower().strip().lstrip(".") in RASTER_FORMAT_EXTENSIONS

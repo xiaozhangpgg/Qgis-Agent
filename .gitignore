@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 *.pyo
-.claude/
 *.db
 .env
+.venv/
+.trae/
+.claude/
+tests/
