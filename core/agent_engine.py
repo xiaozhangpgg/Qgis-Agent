@@ -21,6 +21,16 @@ from ..tools.format_convert import run_format_convert
 from ..tools.batch_export import run_batch_export
 from ..tools.statistics import run_statistics
 from ..tools.field_calculator import run_field_calculator
+from ..tools.dissolve import run_dissolve
+from ..tools.merge_vector_layers import run_merge_vector_layers
+from ..tools.centroids import run_centroids
+from ..tools.convex_hull import run_convex_hull
+from ..tools.boundary import run_boundary
+from ..tools.multipart_to_singleparts import run_multipart_to_singleparts
+from ..tools.symmetrical_difference import run_symmetrical_difference
+from ..tools.extract_by_extent import run_extract_by_extent
+from ..tools.delete_fields import run_delete_fields
+from ..tools.rename_field import run_rename_field
 
 
 logger = logging.getLogger("QgisAgent")
@@ -294,6 +304,16 @@ class AgentEngine(QObject):
         self._registry.register("batch_export", run_batch_export)
         self._registry.register("statistics", run_statistics)
         self._registry.register("field_calculator", run_field_calculator)
+        self._registry.register("dissolve", run_dissolve)
+        self._registry.register("merge_vector_layers", run_merge_vector_layers)
+        self._registry.register("centroids", run_centroids)
+        self._registry.register("convex_hull", run_convex_hull)
+        self._registry.register("boundary", run_boundary)
+        self._registry.register("multipart_to_singleparts", run_multipart_to_singleparts)
+        self._registry.register("symmetrical_difference", run_symmetrical_difference)
+        self._registry.register("extract_by_extent", run_extract_by_extent)
+        self._registry.register("delete_fields", run_delete_fields)
+        self._registry.register("rename_field", run_rename_field)
 
 
     def run(self, user_text: str, attached_files: list = None):

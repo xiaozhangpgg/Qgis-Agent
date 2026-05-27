@@ -322,6 +322,169 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "dissolve",
+            "description": "按属性字段或全部溶解相邻/重叠要素。不指定字段时所有要素溶解为一个，指定字段时按字段值分组溶解。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "dissolve_field": {"type": "string", "description": "可选，溶解分组字段名。不指定则全部溶解为一个要素"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "merge_vector_layers",
+            "description": "将多个同类型矢量图层合并为一个图层。CRS 不一致时以第一个图层的 CRS 为准并发出警告。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "description": "要合并的图层名称列表，至少一个",
+                    },
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_names"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "centroids",
+            "description": "提取面或线要素的几何质心点。不支持点图层输入。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称（面或线图层）"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "convex_hull",
+            "description": "计算要素集的最小凸多边形。输入可以是点、线或面图层。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "boundary",
+            "description": "提取要素的边界。面图层输出边界线，线图层输出端点。不支持点图层。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称（面或线图层）"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "multipart_to_singleparts",
+            "description": "将多部件要素拆分为单部件要素。纯单部件图层也可正常执行（返回副本）。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "symmetrical_difference",
+            "description": "计算两个矢量图层的对称差异区域，即只在一个图层中存在的区域。两个图层 CRS 必须一致。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_a": {"type": "string", "description": "第一个图层名称"},
+                    "layer_b": {"type": "string", "description": "第二个图层名称"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_a", "layer_b"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "extract_by_extent",
+            "description": "按矩形范围从矢量图层中提取要素。坐标基于图层自身的坐标系。范围格式为 'xmin,xmax,ymin,ymax'。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "extent": {"type": "string", "description": "矩形范围，格式: 'xmin,xmax,ymin,ymax'，如 '116.0,117.0,39.0,40.0'"},
+                    "output_name": {"type": "string", "description": "可选，输出图层名称"},
+                },
+                "required": ["layer_name", "extent"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_fields",
+            "description": "删除矢量图层中的指定字段。至少保留一个字段，不能删除全部字段。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "field_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要删除的字段名称列表",
+                    },
+                },
+                "required": ["layer_name", "field_names"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rename_field",
+            "description": "重命名矢量图层的字段。每次只能重命名一个字段。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "layer_name": {"type": "string", "description": "输入矢量图层名称"},
+                    "old_name": {"type": "string", "description": "要重命名的字段名"},
+                    "new_name": {"type": "string", "description": "新的字段名"},
+                },
+                "required": ["layer_name", "old_name", "new_name"],
+            },
+        },
+    },
 ]
 
 
