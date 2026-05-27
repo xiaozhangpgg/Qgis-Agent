@@ -7,3 +7,5 @@ __pycache__/
 .trae/
 .claude/
 tests/
+docs/
+.codegraph/

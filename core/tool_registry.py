@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass, field
+import threading
 from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger("QgisAgent")
@@ -331,6 +332,8 @@ AskDirCallback = Optional[Callable[[str], str]]
 class ToolRegistry:
     """Registry mapping tool names to Python functions and JSON Schema definitions."""
 
+    _execute_lock = threading.Lock()  # 类级别锁，确保同一时间只有一个工具在执行
+
     def __init__(self):
         self._tools: Dict[str, Callable] = {}
         self._definitions: List[Dict[str, Any]] = list(TOOL_DEFINITIONS)
@@ -364,17 +367,18 @@ class ToolRegistry:
         if func is None:
             return {"success": False, "error": f"未知工具: {name}"}
 
-        try:
-            call_params = dict(params)
-            if self._confirm_cb:
-                call_params["_confirm_callback"] = self._confirm_cb
-            if self._ask_dir_cb:
-                call_params["_ask_dir_callback"] = self._ask_dir_cb
-            result = func(**call_params)
-            return result
-        except Exception as e:
-            logger.exception(f"Tool '{name}' execution error")
-            return {"success": False, "error": str(e)}
+        with ToolRegistry._execute_lock:
+            try:
+                call_params = dict(params)
+                if self._confirm_cb:
+                    call_params["_confirm_callback"] = self._confirm_cb
+                if self._ask_dir_cb:
+                    call_params["_ask_dir_callback"] = self._ask_dir_cb
+                result = func(**call_params)
+                return result
+            except Exception as e:
+                logger.exception(f"Tool '{name}' execution error")
+                return {"success": False, "error": str(e)}
 
     def has_tool(self, name: str) -> bool:
         return name in self._tools

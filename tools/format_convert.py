@@ -105,6 +105,7 @@ def run_format_convert(
     target_crs: Optional[str] = None,
     only_selected: bool = False,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     layer = find_layer_case_insensitive(layer_name)
     if layer is None:

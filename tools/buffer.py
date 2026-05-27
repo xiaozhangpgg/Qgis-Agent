@@ -19,6 +19,7 @@ def run_buffer(
     segments: int = 25,
     dissolve: bool = False,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Create buffer zones around features in a layer.
 

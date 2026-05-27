@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 
 from qgis.core import QgsProject, QgsVectorLayer
 
@@ -25,6 +25,8 @@ def run_spatial_query(
     layer_name: str,
     reference_layer: str,
     predicate: str = "intersects",
+    _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Extract features from a layer based on spatial relationship with a reference layer.
 

@@ -14,6 +14,7 @@ def run_attribute_query(
     layer_name: str,
     expression: str,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Extract features from a layer by attribute expression.
 

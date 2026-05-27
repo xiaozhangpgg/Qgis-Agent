@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from qgis.core import QgsProject
 
@@ -38,6 +38,8 @@ def run_field_calculator(
     field_length: Optional[int] = None,
     field_precision: Optional[int] = None,
     output_name: Optional[str] = None,
+    _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Calculate or update a field using a QGIS expression.
 

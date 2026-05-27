@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -72,13 +73,15 @@ class _WorkerThread(QThread):
 
     def __init__(self, llm: LLMClient, registry: ToolRegistry,
                  context_mgr: ContextManager, file_source_mgr: FileSourceManager,
-                 messages: List[Dict[str, Any]], parent=None):
+                 messages: List[Dict[str, Any]], messages_lock: threading.Lock,
+                 parent=None):
         super().__init__(parent)
         self._llm = llm
         self._registry = registry
         self._context_mgr = context_mgr
         self._file_source_mgr = file_source_mgr
         self._messages = messages
+        self._messages_lock = messages_lock
         self._abort = False
         self._confirm_loop = None
         self._confirm_result = ConfirmResult(confirmed=False)
@@ -88,6 +91,10 @@ class _WorkerThread(QThread):
     def abort(self):
         self._abort = True
         self._llm.abort()
+
+    def _append_message(self, msg: Dict[str, Any]):
+        with self._messages_lock:
+            self._messages.append(msg)
 
     def _ask_user_confirm(self, message: str) -> ConfirmResult:
         """Ask user for overwrite confirmation. Called from worker thread, blocks until response."""
@@ -167,7 +174,7 @@ class _WorkerThread(QThread):
                     assistant_msg = {"role": "assistant", "content": response.content}
                     if response.reasoning_content:
                         assistant_msg["reasoning_content"] = response.reasoning_content
-                    self._messages.append(assistant_msg)
+                    self._append_message(assistant_msg)
                     self.text_done.emit()
                 return
 
@@ -179,7 +186,7 @@ class _WorkerThread(QThread):
                 if response.reasoning_content:
                     assistant_msg["reasoning_content"] = response.reasoning_content
                 assistant_msg["tool_calls"] = response.tool_calls
-                self._messages.append(assistant_msg)
+                self._append_message(assistant_msg)
 
                 # Execute each tool call
                 for tc in response.tool_calls:
@@ -211,7 +218,7 @@ class _WorkerThread(QThread):
                         "tool_call_id": tc.get("id", ""),
                         "content": json.dumps(result, ensure_ascii=False),
                     }
-                    self._messages.append(tool_msg)
+                    self._append_message(tool_msg)
 
                 # Loop again for LLM to process tool results
                 continue
@@ -244,7 +251,8 @@ class _WorkerThread(QThread):
 
     def _build_messages(self, system_prompt: str) -> List[Dict[str, Any]]:
         messages = [{"role": "system", "content": system_prompt}]
-        history = self._messages[-MAX_HISTORY_MESSAGES:]
+        with self._messages_lock:
+            history = self._messages[-MAX_HISTORY_MESSAGES:]
         messages.extend(history)
         return messages
 
@@ -267,6 +275,9 @@ class AgentEngine(QObject):
         self._file_source_mgr = file_source_mgr
         self._registry = ToolRegistry()
         self._messages: List[Dict[str, Any]] = []
+        self._messages_lock = threading.Lock()
+        self._pending_text: Optional[str] = None
+        self._pending_files: Optional[list] = None
         self._worker: Optional[_WorkerThread] = None
 
         self._register_tools()
@@ -290,9 +301,15 @@ class AgentEngine(QObject):
             self.error.emit("请先在设置中配置 API Key")
             return
 
-        self._abort_current()
+        if self._worker and self._worker.isRunning():
+            self._pending_text = user_text
+            self._pending_files = list(attached_files) if attached_files else None
+            self._worker.abort()
+            return
 
-        # Handle dual source if needed
+        self._do_run(user_text, attached_files)
+
+    def _do_run(self, user_text: str, attached_files: list = None):
         if attached_files:
             loaded = self._file_source_mgr.load_all_to_qgis()
             if loaded:
@@ -315,11 +332,12 @@ class AgentEngine(QObject):
             else:
                 self._file_source_mgr.set_source_override("plugin")
 
-        self._messages.append({"role": "user", "content": user_text})
+        with self._messages_lock:
+            self._messages.append({"role": "user", "content": user_text})
 
         self._worker = _WorkerThread(
             self._llm, self._registry, self._context_mgr,
-            self._file_source_mgr, self._messages, self,
+            self._file_source_mgr, self._messages, self._messages_lock, self,
         )
         self._worker.text_chunk.connect(self.text_chunk)
         self._worker.text_done.connect(self.text_done)
@@ -341,12 +359,21 @@ class AgentEngine(QObject):
     def _abort_current(self):
         if self._worker and self._worker.isRunning():
             self._worker.abort()
-            self._worker.wait(3000)
-            self._worker = None
 
     def _on_worker_finished(self):
         self._worker = None
         self.finished.emit()
+
+        if self._pending_text is not None:
+            text = self._pending_text
+            files = self._pending_files
+            self._pending_text = None
+            self._pending_files = None
+            self._do_run(text, files)
+
+    @property
+    def is_busy(self) -> bool:
+        return self._worker is not None and self._worker.isRunning()
 
     def _on_confirm_overwrite(self, message: str):
         """Show overwrite confirmation dialog on main thread. Sends response back to worker."""

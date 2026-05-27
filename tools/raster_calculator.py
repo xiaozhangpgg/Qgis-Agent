@@ -20,6 +20,7 @@ def run_raster_calculator(
     output_name: Optional[str] = None,
     cellsize: Optional[float] = None,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Execute raster calculator with given expression.
 

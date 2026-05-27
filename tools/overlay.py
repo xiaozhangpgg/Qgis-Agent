@@ -22,6 +22,7 @@ def run_overlay(
     layer_b: str,
     operation: str = "intersection",
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Perform overlay analysis between two vector layers.
 

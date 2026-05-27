@@ -19,6 +19,7 @@ def run_batch_export(
     output_format: str,
     output_dir: str,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Batch export multiple layers to files in the specified format.
 

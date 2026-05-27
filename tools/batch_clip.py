@@ -18,6 +18,7 @@ def run_batch_clip(
     layer_names: List[str],
     clip_layer: str,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Batch clip multiple layers by a clip boundary layer.
 

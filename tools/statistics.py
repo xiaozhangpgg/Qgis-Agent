@@ -15,6 +15,7 @@ def run_statistics(
     value_field: str,
     category_field: Optional[str] = None,
     _confirm_callback: Optional[Callable] = None,
+    _ask_dir_callback: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """Compute statistics for a field, optionally grouped by categories.
 

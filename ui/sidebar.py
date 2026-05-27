@@ -319,8 +319,9 @@ class SidebarWidget(QDockWidget):
         self._set_input_enabled(True)
 
     def _on_engine_finished(self):
-        self._set_input_enabled(True)
-        self._tool_cards = []
+        if not self._engine.is_busy:
+            self._set_input_enabled(True)
+            self._tool_cards = []
 
     def _set_input_enabled(self, enabled: bool):
         self._input.setEnabled(enabled)
