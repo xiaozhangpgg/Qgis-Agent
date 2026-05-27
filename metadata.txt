@@ -2,7 +2,7 @@
 name=QGIS Agent
 qgisMinimumVersion=3.28
 description=AI-powered GIS assistant that helps you perform spatial operations through natural language conversation.
-version=1.0.0
+version=1.1.0
 author=xiaozhangpgg
 email=xiaozhangpgg@example.com
 about=QGIS Agent is an AI assistant sidebar plugin for QGIS 3.x. Users describe GIS operations in natural language, and the AI automatically breaks down tasks and calls GIS tools to complete the operations.
@@ -17,9 +17,13 @@ deprecated=False
 server=False
 hasProcessingProvider=no
 changelog=
+    1.1.0 - Expanded to 21 GIS tools
+        - Added 10 new vector tools: dissolve, merge, centroids, convex hull, boundary, multipart-to-singleparts, symmetrical difference, extract by extent, delete fields, rename field
+        - Thread-safe tool execution
+        - Enhanced CRS reference in tool descriptions
     1.0.0 - Initial release
         - Natural language GIS operations
         - DeepSeek / Tongyi Qianwen / Zhipu API support
-        - 3 core tools: batch reproject, batch clip, buffer
+        - 11 core tools: batch reproject, batch clip, buffer, overlay, attribute/spatial query, raster calculator, format convert, batch export, statistics, field calculator
         - Conversation history with SQLite persistence
         - Dual source input (project layers + file upload)

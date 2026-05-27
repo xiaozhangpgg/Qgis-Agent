@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/QGIS-3.28%2B-green?logo=qgis" alt="QGIS">
   <img src="https://img.shields.io/badge/Python-3.9%2B-blue?logo=python" alt="Python">
-  <img src="https://img.shields.io/badge/version-1.0.0-orange" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-orange" alt="Version">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
 </p>
 
@@ -22,7 +22,7 @@
 - 💬 **对话历史** — SQLite 持久化存储，支持搜索、切换、删除
 - 🛡️ **安全确认** — 文件覆盖等危险操作弹出确认对话框
 
-## 🛠️ 11 种 GIS 工具
+## 🛠️ 21 种 GIS 工具
 
 | 工具 | 说明 | QGIS 算法 |
 |------|------|-----------|
@@ -30,13 +30,23 @@
 | 批量裁剪 | 用面图层批量裁剪 | `native:clip` |
 | 缓冲区分析 | 创建缓冲区（自动处理地理坐标系） | `native:buffer` |
 | 叠加分析 | 交集/并集/差集 | `native:intersection/union/difference` |
+| 对称差异 | 两个图层的对称差异区域 | `native:symmetricaldifference` |
 | 属性查询 | QGIS 表达式筛选要素 | `native:extractbyexpression` |
 | 空间查询 | 空间关系筛选要素 | `native:extractbylocation` |
+| 范围提取 | 按矩形范围提取要素 | `native:extractbyextent` |
 | 栅格计算器 | 栅格代数运算 | `native:rastercalc` |
-| 格式转换 | Shapefile/GeoJSON/GeoPackage/KML | `native:savefeatures` |
+| 格式转换 | 矢量/栅格多格式导出 | `native:savefeatures` |
 | 批量导出 | 多图层批量导出文件 | `native:savefeatures` |
 | 统计汇总 | 字段统计与分组统计 | `qgis:statisticsbycategories` |
 | 字段计算器 | QGIS 表达式计算新字段 | `native:fieldcalculator` |
+| 溶解 | 按字段或全部溶解相邻要素 | `native:dissolve` |
+| 合并图层 | 多个同类型矢量图层合并 | `native:mergevectorlayers` |
+| 质心提取 | 提取面/线要素的几何质心 | `native:centroids` |
+| 凸包 | 计算要素集的最小凸多边形 | `native:convexhull` |
+| 边界提取 | 提取面边界线或线端点 | `native:boundary` |
+| 多部件拆分 | 多部件要素拆分为单部件 | `native:multiparttosingleparts` |
+| 删除字段 | 删除指定属性字段 | `native:deletecolumn` |
+| 重命名字段 | 重命名属性字段 | `native:renametablefield` |
 
 ## 📸 截图
 
@@ -66,6 +76,25 @@ git clone https://github.com/xiaozhangpgg/QgisAgent.git
 
 1. 将项目打包为 ZIP 文件（确保 `metadata.txt` 在 ZIP 根目录）
 2. QGIS 菜单 → 插件 → 管理和安装插件 → 从 ZIP 安装
+
+> **注意：从 GitHub 下载 ZIP 常见问题**
+>
+> GitHub 下载的 ZIP 解压后经常出现**两层嵌套目录**，导致 QGIS 找不到 `metadata.txt`。请按以下步骤操作：
+>
+> 1. 解压 ZIP 后，打开文件夹，确认 `metadata.txt`、`__init__.py`、`plugin.py` 这三个文件**直接位于当前目录下**（不是在子文件夹里）
+> 2. 如果发现多了一层目录（如 `QgisAgent-main/QgisAgent-main/`），请将**内层文件夹**中的所有文件移出
+> 3. 确保最终文件夹名为 `QgisAgent`（不带分支后缀），然后将此文件夹复制到 QGIS 插件目录
+>
+> 正确的目录结构应该是：
+> ```
+> plugins/QgisAgent/
+> ├── metadata.txt      ← 必须在根目录
+> ├── __init__.py
+> ├── plugin.py
+> ├── core/
+> ├── tools/
+> └── ui/
+> ```
 
 ## ⚙️ 配置
 
@@ -112,19 +141,29 @@ QgisAgent/
 │   ├── conversation_manager.py  # 对话历史 SQLite 持久化
 │   └── file_source_manager.py   # 双数据源管理
 │
-├── tools/                   # GIS 工具实现
+├── tools/                   # GIS 工具实现（21 个）
 │   ├── _utils.py            # 公共工具函数
 │   ├── batch_reproject.py   # 批量坐标转换
 │   ├── batch_clip.py        # 批量裁剪
 │   ├── buffer.py            # 缓冲区分析
 │   ├── overlay.py           # 叠加分析
+│   ├── symmetrical_difference.py  # 对称差异
 │   ├── attribute_query.py   # 属性查询
 │   ├── spatial_query.py     # 空间查询
+│   ├── extract_by_extent.py # 范围提取
 │   ├── raster_calculator.py # 栅格计算器
 │   ├── format_convert.py    # 格式转换
 │   ├── batch_export.py      # 批量导出
 │   ├── statistics.py        # 统计汇总
-│   └── field_calculator.py  # 字段计算器
+│   ├── field_calculator.py  # 字段计算器
+│   ├── dissolve.py          # 溶解
+│   ├── merge_vector_layers.py  # 合并图层
+│   ├── centroids.py         # 质心提取
+│   ├── convex_hull.py       # 凸包
+│   ├── boundary.py          # 边界提取
+│   ├── multipart_to_singleparts.py  # 多部件拆分
+│   ├── delete_fields.py     # 删除字段
+│   └── rename_field.py      # 重命名字段
 │
 ├── ui/                      # UI 组件
 │   ├── sidebar.py           # 侧边栏主界面
