@@ -35,7 +35,7 @@ from ..tools.rename_field import run_rename_field
 
 logger = logging.getLogger("QgisAgent")
 
-MAX_AGENT_LOOPS = 10
+MAX_AGENT_LOOPS = 30
 MAX_HISTORY_MESSAGES = 20
 
 SYSTEM_PROMPT_TEMPLATE = """你是 QGIS Agent，一个专业的 GIS 助手。你运行在 QGIS 中。
