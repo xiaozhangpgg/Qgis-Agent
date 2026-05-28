@@ -52,7 +52,10 @@
 
 ## 📸 截图
 
-> *待补充*
+
+
+https://github.com/user-attachments/assets/ed768b21-99d2-476a-9f98-ca26f405f6c8
+
 
 ## 📦 安装
 
