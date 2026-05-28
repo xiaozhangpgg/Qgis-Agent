@@ -1,3 +1,4 @@
+import inspect
 import logging
 from dataclasses import dataclass, field
 import threading
@@ -502,6 +503,7 @@ class ToolRegistry:
         self._definitions: List[Dict[str, Any]] = list(TOOL_DEFINITIONS)
         self._confirm_cb: ConfirmCallback = None
         self._ask_dir_cb: AskDirCallback = None
+        self._func_signatures: Dict[int, Optional[inspect.Signature]] = {}
 
     def register(self, name: str, func: Callable):
         self._tools[name] = func
@@ -525,6 +527,16 @@ class ToolRegistry:
     def get_definitions(self) -> List[Dict[str, Any]]:
         return self._definitions
 
+    def _get_func_signature(self, func: Callable) -> Optional[inspect.Signature]:
+        """获取函数签名，带缓存和异常处理"""
+        func_id = id(func)
+        if func_id not in self._func_signatures:
+            try:
+                self._func_signatures[func_id] = inspect.signature(func)
+            except (ValueError, TypeError):
+                self._func_signatures[func_id] = None
+        return self._func_signatures[func_id]
+
     def execute(self, name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         func = self._tools.get(name)
         if func is None:
@@ -537,6 +549,27 @@ class ToolRegistry:
                     call_params["_confirm_callback"] = self._confirm_cb
                 if self._ask_dir_cb:
                     call_params["_ask_dir_callback"] = self._ask_dir_cb
+
+                # Filter out parameters not accepted by the function signature
+                sig = self._get_func_signature(func)
+                if sig is not None:
+                    valid_params = set(sig.parameters.keys())
+                    has_var_keyword = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values()
+                    )
+                    if not has_var_keyword:
+                        filtered = {
+                            k: v for k, v in call_params.items()
+                            if k in valid_params
+                        }
+                        extra = set(call_params.keys()) - valid_params
+                        if extra:
+                            logger.warning(
+                                f"Tool '{name}' ignoring unexpected parameters: {extra}"
+                            )
+                        call_params = filtered
+
                 result = func(**call_params)
                 return result
             except Exception as e:

@@ -263,8 +263,47 @@ class _WorkerThread(QThread):
         messages = [{"role": "system", "content": system_prompt}]
         with self._messages_lock:
             history = self._messages[-MAX_HISTORY_MESSAGES:]
+        history = self._sanitize_history(history)
         messages.extend(history)
         return messages
+
+    @staticmethod
+    def _sanitize_history(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove orphaned tool messages that lack a preceding assistant with tool_calls."""
+        # 收集所有 assistant 声明的 tool_call_ids
+        declared_tool_ids: set = set()
+        for msg in messages:
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                for tc in msg["tool_calls"]:
+                    tc_id = tc.get("id", "")
+                    if tc_id:
+                        declared_tool_ids.add(tc_id)
+
+        # 过滤孤立的 tool 消息（没有对应 assistant 声明的）
+        cleaned = []
+        for msg in messages:
+            if msg.get("role") == "tool":
+                if msg.get("tool_call_id") not in declared_tool_ids:
+                    continue
+            cleaned.append(msg)
+
+        # 收集实际存在的 tool 结果 ids
+        existing_tool_ids = {
+            m.get("tool_call_id", "")
+            for m in cleaned
+            if m.get("role") == "tool"
+        }
+
+        # 过滤所有 tool_calls 都没有结果的 assistant 消息
+        result = []
+        for msg in cleaned:
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                tc_ids = {tc.get("id", "") for tc in msg["tool_calls"] if tc.get("id")}
+                if tc_ids and not tc_ids & existing_tool_ids:
+                    continue
+            result.append(msg)
+
+        return result
 
 
 class AgentEngine(QObject):

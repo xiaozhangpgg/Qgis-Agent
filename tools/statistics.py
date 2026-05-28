@@ -49,7 +49,7 @@ def run_statistics(
     try:
         if category_field:
             params = {
-                "INPUT": layer,
+                "INPUT": layer.id(),
                 "VALUES_FIELD_NAME": value_field,
                 "CATEGORIES_FIELD_NAME": [category_field],
                 "OUTPUT": "memory:",
@@ -82,7 +82,7 @@ def run_statistics(
         else:
             # Use qgis:basicstatisticsforfields for overall stats (no categories)
             params = {
-                "INPUT": layer,
+                "INPUT": layer.id(),
                 "FIELD": value_field,
             }
 
