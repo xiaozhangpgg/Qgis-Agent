@@ -102,16 +102,59 @@ git clone https://github.com/xiaozhangpgg/QgisAgent.git
 
 1. 点击 QGIS 工具栏的 QGIS Agent 图标打开侧边栏
 2. 点击 **设置** 按钮
-3. 选择 LLM 提供商并填写 API Key：
-
-| 提供商 | Base URL | 推荐模型 |
-|--------|----------|----------|
-| DeepSeek | `https://api.deepseek.com/v1` | deepseek-chat |
-| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | qwen-plus |
-| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | glm-4-flash |
-| 自定义 | 用户填写 | 用户填写 |
-
+3. 选择 LLM 提供商并填写 API Key（详见下方申请指南）
 4. 点击 **测试连接** 验证，保存配置
+
+### 申请 API Key 指南
+
+#### DeepSeek（推荐国内用户）
+
+1. 访问 [DeepSeek 开放平台](https://platform.deepseek.com/)
+2. 注册账号并完成实名认证
+3. 进入 **API Keys** 页面，点击 **创建 API Key**
+4. 复制生成的 Key（格式类似 `sk-xxxxxxxxxxxxxxxx`）
+5. 在插件设置中选择 **DeepSeek**，粘贴 API Key
+6. 推荐模型：`deepseek-chat`（性价比高）或 `deepseek-reasoner`（推理能力更强）
+
+> 新用户通常有免费额度，可先试用。
+
+#### 通义千问（阿里云）
+
+1. 访问 [阿里云百炼平台](https://bailian.console.aliyun.com/)
+2. 使用支付宝/淘宝/阿里云账号登录
+3. 开通 **模型服务灵积**（首次使用需开通，免费）
+4. 进入 **API-KEY 管理** 页面，创建新的 API Key
+5. 复制 Key（格式类似 `sk-xxxxxxxxxxxxxxxx`）
+6. 在插件设置中选择 **通义千问**，粘贴 API Key
+7. 推荐模型：`qwen-plus`（均衡）或 `qwen-turbo`（速度快）
+
+> 通义千问有大量免费额度，适合日常使用。
+
+#### 智谱 AI
+
+1. 访问 [智谱开放平台](https://open.bigmodel.cn/)
+2. 注册账号（支持手机号/邮箱注册）
+3. 进入 **API Keys** 页面，点击 **创建 API Key**
+4. 复制生成的 Key（格式类似 `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`）
+5. 在插件设置中选择 **智谱**，粘贴 API Key
+6. 推荐模型：`glm-4-flash`（免费）或 `glm-4-plus`（能力更强）
+
+> `glm-4-flash` 模型完全免费，适合入门体验。
+
+#### 自定义提供商
+
+如果你使用其他兼容 OpenAI API 格式的服务（如 OpenAI、Azure OpenAI、本地 Ollama 等）：
+
+1. 在插件设置中选择 **自定义**
+2. 填写 **Base URL**（如 `https://api.openai.com/v1` 或 `http://localhost:11434/v1`）
+3. 填写对应的 **API Key**
+4. 手动输入或点击 **获取模型列表** 选择模型
+
+### 提示
+
+- API Key 属于个人敏感信息，请勿分享给他人
+- 各平台的 API Key 通常可以在控制台页面重新生成或删除
+- 如果 **测试连接** 失败，请检查：网络是否通畅、API Key 是否正确、账户是否有余额
 
 ## 🚀 使用
 
@@ -172,11 +215,6 @@ QgisAgent/
 │   ├── message_widget.py    # 消息气泡组件
 │   ├── settings_dialog.py   # 设置对话框
 │   └── tool_card.py         # 工具调用卡片
-│
-└── docs/                    # 文档
-    ├── Code_Wiki.md         # 代码百科
-    ├── Development_Plan.md  # 开发计划
-    └── PRD_Acceptance_Criteria.md  # PRD 验收标准
 ```
 
 ## 🧩 架构

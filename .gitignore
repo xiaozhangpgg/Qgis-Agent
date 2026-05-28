@@ -1,7 +1,6 @@
 __pycache__/
 *.pyc
 *.pyo
-*.db
 .env
 .venv/
 .trae/
@@ -9,6 +8,4 @@ __pycache__/
 tests/
 docs/
 .codegraph/
-CLAUDE.md
 *.zip
-package_release.py
